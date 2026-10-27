@@ -59,7 +59,7 @@ Installation does not enable startup automatically. Quit the installed pet befor
         'test' {
             Build-App
             Test-App '--self-test' 'self-test.log' 20
-            Test-App '--smoke-test' 'smoke-test.log' 35
+            Test-App '--smoke-test' 'smoke-test.log' 60
             Test-App '--audio-test' 'audio-test.log' 55
         }
         'publish' {

@@ -15,7 +15,21 @@ namespace DragonBreak;
 internal sealed class PetWindow : Window
 {
     public bool Dragging { get; private set; }
-    public IPetVisual Model { get; }
+    private readonly Border _body;
+    private FrameworkElement? _presentationView;
+    private Point? _pressPoint;
+    public IPetVisual Model { get; private set; } = null!;
+    public void SetPet(IPetDefinition definition)
+    {
+        var presentation = definition.CreatePresentation(370, false);
+        Model = presentation.Visual;
+        _body.ToolTip = Model is IInteractivePetVisual
+            ? "Click to pet; click nose to boop; drag to move; right-click for actions; double-click for settings"
+            : "Drag to move; right-click for controls; double-click for settings";
+        _presentationView = presentation.View;
+        _body.Child = new Viewbox { Child = presentation.View, Stretch = Stretch.Uniform };
+        Title = "DragonBreak pet";
+    }
     public void ApplySize(int percent)
     {
         double scale = Math.Clamp(percent, 50, 200) / 100d;
@@ -33,18 +47,37 @@ internal sealed class PetWindow : Window
         Title = "DragonBreak pet"; Width = 380; Height = 380;
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         ResizeMode = ResizeMode.NoResize; Topmost = true; ShowInTaskbar = false; ShowActivated = false;
-        var presentation = definition.CreatePresentation(370, false); var art = presentation.View;
-        Model = presentation.Visual;
-        var body = new Border { Background = Brushes.Transparent, Child = new Viewbox { Child = art, Stretch = Stretch.Uniform }, Cursor = Cursors.Hand,
-            ToolTip = "Drag to move • right-click for controls • double-click for settings" };
-        Content = body;
+        _body = new Border { Background = Brushes.Transparent, Cursor = Cursors.Hand,
+            ToolTip = "Drag to move; right-click for controls; double-click for settings" };
+        Content = _body;
+        SetPet(definition);
+        var body = _body;
         body.MouseLeftButtonDown += (_, e) =>
         {
-            if (e.ClickCount == 2) { settings(); return; }
-            Dragging = true;
+            if (e.ClickCount == 2) { _pressPoint = null; body.ReleaseMouseCapture(); settings(); return; }
+            _pressPoint = e.GetPosition(this); body.CaptureMouse(); e.Handled = true;
+        };
+        body.MouseMove += (_, e) =>
+        {
+            if (_pressPoint is not Point start || e.LeftButton != MouseButtonState.Pressed) return;
+            Point now = e.GetPosition(this);
+            if (Math.Abs(now.X - start.X) < SystemParameters.MinimumHorizontalDragDistance &&
+                Math.Abs(now.Y - start.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+            _pressPoint = null; body.ReleaseMouseCapture(); Dragging = true;
+            if (Model is IInteractivePetVisual interactive) interactive.CancelInteraction();
             try { DragMove(); } catch (InvalidOperationException) { }
             finally { Dragging = false; }
         };
+        body.MouseLeftButtonUp += (_, e) =>
+        {
+            bool tap = _pressPoint != null; _pressPoint = null; body.ReleaseMouseCapture();
+            if (tap && Model is IInteractivePetVisual interactive && _presentationView is { ActualWidth: > 0, ActualHeight: > 0 } view)
+            {
+                var point = e.GetPosition(view);
+                interactive.TryTap(new Point(point.X / view.ActualWidth, point.Y / view.ActualHeight));
+            }
+        };
+        body.LostMouseCapture += (_, _) => _pressPoint = null;
         body.MouseRightButtonUp += (_, _) => { var context = menu(); context.PlacementTarget = body; context.IsOpen = true; };
     }
 }

@@ -10,6 +10,7 @@ public enum Movement { Wander, Follow, Stay }
 
 public sealed record Settings
 {
+    public string PetId { get; set; } = "dragon";
     public ReminderStyle Style { get; set; } = ReminderStyle.FullScreen;
     public List<CustomReminder> CustomReminders { get; set; } = new();
     public int WaterMinutes { get; set; } = 45;
@@ -25,6 +26,7 @@ public sealed record Settings
 
     public Settings Validate() => this with
     {
+        PetId = PetCatalog.Find(PetId).Id,
         Style = Enum.IsDefined(Style) ? Style : ReminderStyle.FullScreen,
         CustomReminders = (CustomReminders ?? new()).Where(r => r != null && !string.IsNullOrWhiteSpace(r.Message))
             .DistinctBy(r => r.Id).Select(r => r with { Id = r.Id == Guid.Empty ? Guid.NewGuid() : r.Id,

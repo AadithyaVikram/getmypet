@@ -19,7 +19,7 @@ internal static class Program
         using var single = new Mutex(true, "Local\\DragonBreak.DesktopPet", out bool first);
         if (!first && !preview)
         {
-            MessageBox.Show("DragonBreak is already running. Right-click the dragon or its tray icon for settings.", "DragonBreak");
+            MessageBox.Show("DragonBreak is already running. Right-click the pet or its tray icon for settings.", "DragonBreak");
             return 0;
         }
         try

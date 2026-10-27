@@ -22,7 +22,7 @@ internal sealed partial class PetController : IDisposable
     private Settings _settings;
     private readonly Schedule _schedule;
     private readonly PetWindow _pet;
-    private readonly IPetDefinition _definition = PetCatalog.Default;
+    private IPetDefinition _definition = PetCatalog.Default;
     private readonly Forms.NotifyIcon _tray;
     private readonly DispatcherTimer _movement = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -35,6 +35,7 @@ internal sealed partial class PetController : IDisposable
     private string? _nextAudio;
     private double _targetX, _targetY;
     private readonly EdgeWander _wander = new();
+    private readonly GroundMotion _ground = new();
     private readonly Stopwatch _elapsed = Stopwatch.StartNew();
     private long _lastMovement;
     private int _smokeStep;
@@ -45,12 +46,13 @@ internal sealed partial class PetController : IDisposable
     {
         _app = app; _preview = preview;
         _settings = preview ? new Settings { Muted = true, QuietHours = false, BreakSeconds = 15 } : Settings.Load();
+        _definition = PetCatalog.Find(_settings.PetId);
         _schedule = new Schedule(_settings, DateTimeOffset.Now);
         _pet = new PetWindow(OpenSettings, ContextMenu, _definition);
         _pet.ApplySize(_settings.PetSizePercent);
         _pet.SourceInitialized += (_, _) => ResizePet();
         _pet.Left = SystemParameters.WorkArea.Right - _pet.Width - 25;
-        _pet.Top = SystemParameters.WorkArea.Bottom - _pet.Height - 25;
+        _pet.Top = SystemParameters.WorkArea.Bottom - _pet.Height - (_definition.Locomotion == PetLocomotion.Ground ? 0 : 25);
         _tray = new Forms.NotifyIcon { Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "Assets", "Brand", "app.ico")), Text = "DragonBreak · right-click for controls", Visible = !preview };
         _tray.DoubleClick += (_, _) => OpenSettings();
         _tray.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Right) { var m = ContextMenu(); m.IsOpen = true; } };
@@ -160,7 +162,7 @@ internal sealed partial class PetController : IDisposable
     private void OpenSettings()
     {
         if (_settingsWindow != null) { _settingsWindow.Activate(); return; }
-        _settingsWindow = new SettingsWindow(_settings, SaveSettings, ShowBreak, Quit, r => ShowReminder(new(null, r.Id, "A little reminder", r.Message, r.Style)));
+        _settingsWindow = new SettingsWindow(_settings, SaveSettings, ShowBreak, Quit, r => ShowReminder(new(null, r.Id, "A little reminder", r.Message, r.Style)), InteractWithPet);
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
     }
@@ -170,6 +172,14 @@ internal sealed partial class PetController : IDisposable
         var validated = settings.Validate();
         if (!_preview) validated.Save();
         _settings = validated;
+        var definition = PetCatalog.Find(validated.PetId);
+        if (definition.Id != _definition.Id)
+        {
+            Finish(false);
+            _definition = definition;
+            _pet.SetPet(definition);
+            _ground.Reset();
+        }
         ResizePet();
         _wander.Reset();
         _schedule.Reset(_settings, DateTimeOffset.Now);
@@ -190,7 +200,13 @@ internal sealed partial class PetController : IDisposable
         int height = (int)Math.Round(_pet.Height * (transform?.M22 ?? 1));
         int x = Math.Clamp(before.Left + (before.Right - before.Left - width) / 2, area.Left, Math.Max(area.Left, area.Right - width));
         int y = Math.Clamp(before.Top + (before.Bottom - before.Top - height) / 2, area.Top, Math.Max(area.Top, area.Bottom - height));
+        if (_definition.Locomotion == PetLocomotion.Ground && _settings.Movement != Movement.Stay) y = area.Bottom - height;
         SetWindowPos(hwnd, IntPtr.Zero, x, y, width, height, 0x0014);
+    }
+
+    private void InteractWithPet(PetInteraction action)
+    {
+        if (_overlay == null && !_suspended && _pet.Model is IInteractivePetVisual pet) pet.Interact(action);
     }
 
     private ContextMenu ContextMenu()
@@ -199,6 +215,16 @@ internal sealed partial class PetController : IDisposable
         void Add(string name, Action action) { var item = new MenuItem { Header = name }; item.Click += (_, _) => action(); menu.Items.Add(item); }
         Add("Settings…", OpenSettings);
         Add(_paused ? "Resume reminders and movement" : "Pause reminders and movement", () => { _paused = !_paused; _schedule.Reset(_settings, DateTimeOffset.Now); if (_paused) Finish(false); });
+        if (_pet.Model is IInteractivePetVisual)
+        {
+            Add("Pet the cat", () => InteractWithPet(PetInteraction.Pet));
+            Add("Boop nose", () => InteractWithPet(PetInteraction.Boop));
+            Add("Give a treat", () => InteractWithPet(PetInteraction.Treat));
+            Add("Play with yarn", () => InteractWithPet(PetInteraction.Play));
+            Add("Take a nap", () => InteractWithPet(PetInteraction.Nap));
+            Add("Wake up", () => InteractWithPet(PetInteraction.Wake));
+            menu.Items.Add(new Separator());
+        }
         Add("Test water reminder", () => ShowBreak(BreakKind.Water));
         Add("Test stretch reminder", () => ShowBreak(BreakKind.Stretch));
         foreach (Movement mode in Enum.GetValues<Movement>())
@@ -215,11 +241,22 @@ internal sealed partial class PetController : IDisposable
         if (_paused || _suspended || _overlay != null || _pet.Dragging || _pet.IsMouseOver || !_pet.IsVisible) return;
         var hwnd = new WindowInteropHelper(_pet).Handle;
         if (!GetWindowRect(hwnd, out var rect)) return;
+        if (_pet.Model is IInteractivePetVisual { IsInteracting: true }) return;
         var cursor = Forms.Cursor.Position;
         var screen = _settings.Movement == Movement.Follow ? Forms.Screen.FromPoint(cursor) : Forms.Screen.FromHandle(hwnd);
         var area = screen.WorkingArea;
         int width = rect.Right - rect.Left, height = rect.Bottom - rect.Top;
         double right = Math.Max(area.Left, area.Right - width), bottom = Math.Max(area.Top, area.Bottom - height);
+        if (_definition.Locomotion == PetLocomotion.Ground)
+        {
+            var groundStep = _ground.Advance(new Point(rect.Left, rect.Top), new Rect(area.Left, area.Top, right - area.Left, bottom - area.Top),
+                seconds, _settings.Movement, new Point(cursor.X, cursor.Y));
+            if (_pet.Model is IGroundPetVisual model) model.Activity = groundStep.Activity;
+            double dxGround = groundStep.Position.X - rect.Left;
+            if (Math.Abs(dxGround) > .3) _pet.Model.FacingRight = dxGround > 0;
+            SetWindowPos(hwnd, IntPtr.Zero, (int)Math.Round(groundStep.Position.X), (int)Math.Round(groundStep.Position.Y), 0, 0, 0x0015);
+            return;
+        }
         if (_settings.Movement != Movement.Wander) _wander.Reset();
         if (_settings.Movement == Movement.Stay)
         {

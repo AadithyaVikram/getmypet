@@ -49,3 +49,9 @@ Priorities: reuse transforms/buffers; eliminate unnecessary rendering when hidde
 After a renderer/model change, inspect the actual animation, including turns, loop seams and face/limb deformation. Exercise Esc, Skip, Snooze and volume; test on multiple DPI monitors. Real session-lock/suspend recovery, GPU/power measurements, long-duration stability, and exact Shenron fidelity remain manual/unverified work. Audio checks validate playback, not subjective voice quality.
 
 Runtime and publish scripts are independent of PwdVault. The reference images were made with the built-in image generator; prompts are in README. Keep asset provenance and third-party rights visible when bringing in outside models. No blanket license has been assigned to this repository or the referenced character.
+
+## Second pet: Orange cat
+
+`src/Pets/Cat/CatModel.cs` owns the procedural cat mesh and walking/resting poses. `CatPet.cs` registers the grounded pet and silent reminder presentation. `src/App/GroundMotion.cs` keeps its Wander and Follow travel along the working-area bottom, and supplies activity states through `IGroundPetVisual`. `Settings.PetId` and the companion selector persist and apply pet changes without replacing the host window. Existing settings keep Dragon as the default; unknown IDs safely fall back. The dragon model viewer and GLB exports remain specific to Dragon. Cat uses no external model, image, or audio assets. Read `docs/ARCHITECTURE.md` for extension points.
+
+The cat now defaults to `Cat2D.cs`: continuously animated vector artwork with mirrored left/right views. `cat-3d` retains the procedural 3D renderer as a selectable comparison; `cat` keeps existing saved choices on the 2D version. Both implement the same grounded activity contract. No raster sprites are required.

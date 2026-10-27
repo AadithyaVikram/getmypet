@@ -12,3 +12,5 @@ This folder is an independent Windows desktop-pet repository. Keep all build and
 - Keep `bin`, `obj`, `artifacts`, local settings, and credentials out of commits. Commit source, required audio, visual references, and deliberate portable exports.
 
 - Read `docs/ARCHITECTURE.md` before adding a pet. Keep pet-specific models, effects, audio and references within `src/Pets/<Pet>/`; shared UI depends on the pet interfaces.
+
+- Orange cat lives in `src/Pets/Cat/`. Keep it grounded and upright; use `GroundMotion` and the pet activity contract instead of applying dragon flight orientation. Keep live pet switching, saved IDs and silent cat reminder behavior covered by tests.

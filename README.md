@@ -1,12 +1,13 @@
 # DragonBreak
 
-A small, offline Windows desktop pet inspired by Shenron. A live 3D dragon bends its spine continuously, paddles its legs, and sweeps its tail. It wanders through varied outer-screen positions with brief crossings, turns to face its direction of travel, or follows your pointer. Water and movement breaks have a full-screen dragon, animated flame, synthesized roar, and low-pitched Windows voice.
+An offline Windows desktop companion with a flying dragon and a sleepy orange cat. A live 3D dragon bends its spine continuously, paddles its legs, and sweeps its tail. It wanders through varied outer-screen positions with brief crossings, turns to face its direction of travel, or follows your pointer. Reminders can use a compact popup or a full-screen presentation of your selected pet. Full-screen dragon reminders include flame, roar and voice; cat reminders are silent.
 
 ## Use
 
 Open **DragonBreak** from the Desktop or Start menu. Settings open alongside the pet. Closing settings leaves the pet running.
 
-- Drag the dragon to place it. Right-click it or its tray icon for settings, movement modes, pause, preview, mute, and quit. Double-click the dragon for settings.
+- Choose **Dragon** or **Orange cat** under **Your companion** in Settings and click **Save** to switch immediately. Your choice persists across restarts.
+- Drag the pet to place it. Right-click it or its tray icon for settings, movement modes, pause, preview, mute, and quit. Double-click the pet for settings.
 - **Wander** flies between varied positions in the outer areas of its current monitor. **Follow** moves toward your pointer, with a gap. **Stay** keeps the pet in place while its body keeps moving.
 - Water defaults to every 45 minutes and movement to every 60 minutes. These are editable preferences, not medical recommendations. Save restarts the timers.
 - Reminders cover the pet's current monitor. Other monitors remain usable. **Done**, **Skip**, **Esc**, or Alt+F4 dismiss; **Snooze 5 min** delays that reminder. The countdown dismisses automatically.
@@ -64,7 +65,7 @@ Settings lets you add, edit, disable, or remove recurring custom messages (up to
 
 Choose FullScreen or Popup for water and movement, and separately for each custom reminder. Popup is silent, appears in the lower corner of the pet monitor's working area, and does not activate or take keyboard focus. It supports Done, Skip, Snooze 5 min, and automatic dismissal. FullScreen retains the animated takeover. Quiet hours, pause, lock, and suspend apply to all automatic reminders. Reminders are spaced by at least two minutes after dismissal.
 
-The app icon is an original ivory paw and copper reminder spark on a plum tile, shared by the executable, tray, and settings. Dragon remains the only available pet in this version. Future cat/dog companions can implement the shared pet contracts described in docs/ARCHITECTURE.md; reminder records and scheduling contain no pet or renderer dependency.
+The app icon is an original ivory paw and copper reminder spark on a plum tile, shared by the executable, tray, and settings. Dragon and Orange cat are selectable in this version. Future companions can implement the shared pet contracts described in docs/ARCHITECTURE.md; reminder records and scheduling contain no pet or renderer dependency.
 
 ## Source organization
 
@@ -77,3 +78,11 @@ Wander varies destinations across an outer band, with randomized inset and direc
 Turning preserves the selected pet scale. The desktop host uses a square rotation area so vertical and diagonal flight do not trigger resizing. A real 3D turn may still change the projected silhouette; screen heading alone does not zoom the model.
 
 The app palette uses warm ivory (#FAF4EB), plum (#382638), and copper (#9B472E), with blush surfaces. Shared colours and control styles live in src/UI/Ui.cs; editable logo artwork lives in Assets/Brand/logo.svg. The dragon retains its own character colours.
+
+## Orange cat
+
+Orange cat (2D) is the default cat: a rounded, vector-drawn tabby with mirrored left/right views, cream paws, pink ears, rosy cheeks, blinking eyes, a swishing tail and continuous walking/resting animations. Sleeping closes its eyes and adds floating z symbols; full-screen reminders show a raised paw and a heart. Orange cat (3D preview) preserves the previous model for comparison. Both share grounded movement, saved selection, size controls and silent reminders. Choose a version in Settings and Save. No image swapping or external assets are used.
+
+## Interacting with the 2D cat
+
+Click its body to pet it (closed eyes and floating hearts), or tap its nose for a boop. Clicking a sleeping cat wakes it. Drag starts only after moving the pointer beyond the normal drag threshold; double-click still opens Settings. Right-click the cat or tray icon for Pet the cat, Boop nose, Give a treat, Play with yarn, Take a nap, and Wake up. The same actions appear in Settings when the 2D cat is active. Treats show a food bowl and nibbling; yarn play adds a bouncing ball and pawing. Reactions pause ordinary wandering without changing your movement preference or reminder schedule. Nap lasts until an action wakes the cat; the other reactions end automatically. Dragging cancels a reaction. The 3D comparison cat retains its original behavior.

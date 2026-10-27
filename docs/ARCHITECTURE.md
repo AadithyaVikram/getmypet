@@ -9,6 +9,7 @@ src/
   Pets/
     IPetDefinition.cs  Pet visuals, presentation and optional audio contract
     PetCatalog.cs      Available definitions and current default
+    Cat/               CatPet.cs and articulated CatModel.cs
     Dragon/
       DragonPet.cs     Presentation, flame effects and audio mapping
       DragonModel.cs   Dragon mesh and animation
@@ -25,15 +26,21 @@ The root project automatically includes C# files in these folders. Namespaces an
 
 `PetController` and `PetWindow` consume `IPetDefinition` and `IPetVisual`, not the dragon model. Each presentation creates an independent WPF view and animation state. The host supplies movement direction, screen heading and banking; the pet owns appearance and effects. Reminder scheduling and custom text remain shared. Compact popups do not create pet models.
 
-To add a cat or dog:
+To add another pet:
 
 1. Add `src/Pets/Cat/` (or `Dog/`) with an `IPetDefinition` implementation and a visual implementing `IPetVisual`. Create a new view on every `CreatePresentation` call; a WPF element cannot have two parents. Stop animation work when the view is hidden/unloaded, as the dragon does.
 2. Keep that pet's audio under `Assets/Audio/`, concept art under `Assets/References/`, and deliberate exports under `Exports/` within its folder. Runtime audio is automatically copied to `Pets/<name>/Assets/Audio/`; return paths relative to the executable directory. Audio properties may return null for silent pets.
-3. Register the definition in `PetCatalog.All`. Add a saved pet ID and a selector when multiple pets actually ship; the dragon remains the default in this iteration.
+3. Register the definition in `PetCatalog.All`. Its stable ID appears in the existing selector and persists through `Settings.PetId`; unknown IDs fall back to the dragon. Set `Locomotion` to Ground for a pet that walks rather than flies.
 4. Keep pet-specific effects in that implementation. Shared UI must use `CreatePresentation`; it should not construct a concrete model. The dragon development viewer may access its concrete model for camera and mesh export.
 5. Run `dragonbreak.cmd test`, and verify the new pet in its host and full-screen presentation. Preserve popup focus behavior, snooze, quiet hours, lock/suspend handling and audio preferences.
 
-No cat/dog assets, pet selection UI, renderer plugin loading or animated GLB importer are included yet. Dragon exports remain static poses.
+Dragon and Orange cat are available in the pet selector. Dog assets, renderer plugin loading and an animated GLB importer are not included. Dragon exports remain static poses.
 `src/App/EdgeWander.cs` owns varied outer-band routing independently of WPF windows. Its clock advances only during active wandering; manual repositioning and working-area changes replan toward the outer band. `tests/WanderTests.cs` simulates routes on normal, negative-coordinate and degenerate working areas, checking containment, speed, pause behavior and centre occupancy.
 
 The desktop host keeps a square rotation area. Screen heading uses rotation only; it must not introduce angle-dependent scale changes. Keep geometry within that fixed area and check transparent edge clearance in rendered previews.
+
+Grounded pets use `src/App/GroundMotion.cs` and `IGroundPetVisual.Activity`. The cat cycles through walking (9 seconds), sitting (4), grooming (6), and sleeping (13). Wander travel stays along the bottom of the working area; Follow follows the pointer horizontally along that bottom; Stay holds its location and never walks in place. The shared host swaps presentations in place when settings are saved; unloaded models stop their animation timers. Cat reminders use the same scheduling/dismissal UI and no audio. Tests cover migration, saved pet IDs, grounded/resting movement, switching through the real selector, and full-screen/popup reminders.
+
+`Cat2D.cs` is the primary cat renderer (stable ID `cat`). It draws vector shapes and continuous poses with left/right mirroring. The original `CatModel.cs` stays registered as `cat-3d` for comparison. Ground motion and reminder logic consume the same interface for both.
+
+`IInteractivePetVisual` advertises optional interaction support. `PetInteractionState` owns transient reaction timing; Cat2D supplies hit regions, gestures and drawings. The host distinguishes taps from drags and converts taps to normalized presentation coordinates. The controller freezes route advancement while a reaction is active; reminders use a separate clock. Interaction state is not persisted and is discarded on pet replacement. Nap is indefinite until Wake, another action, or drag. The 3D comparison does not advertise this capability.

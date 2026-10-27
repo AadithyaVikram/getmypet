@@ -21,6 +21,8 @@ internal static class SelfTest
             Check(System.Text.Json.JsonSerializer.Deserialize<Settings>(System.Text.Json.JsonSerializer.Serialize(new Settings { PetSizePercent = 150 }))!.PetSizePercent == 150, "Size persists");
             var now = new DateTimeOffset(2026, 10, 25, 12, 0, 0, TimeSpan.Zero);
             WanderTests.Run(Check);
+            CatTests.Run(Check);
+            InteractionTests.Run(Check);
             var timer = new Schedule(s, now);
             Check(timer.Due(now) == null, "No immediate reminder");
             Check(timer.Due(now.AddMinutes(1)) == BreakKind.Water, "Water wins equal deadlines");

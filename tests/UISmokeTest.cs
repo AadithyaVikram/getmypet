@@ -132,6 +132,91 @@ internal sealed partial class PetController
                 AssertPetClearance();
                 Capture(_pet, "diagonal-pet-preview.png");
                 File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "smoke-test.log"), "PASS: rendered vertical and diagonal travel orientation with fixed scale and unclipped host.\n");
+            }
+            if (_smokeStep == 20) { _paused = false; OpenSettings(); }
+            if (_smokeStep == 21)
+            {
+                if (_settingsWindow == null) throw new Exception("Settings missing for pet switch");
+                var oldHandle = new WindowInteropHelper(_pet).Handle;
+                FindPetPicker(_settingsWindow).SelectedValue = "cat";
+                FindButton(_settingsWindow, "Save").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (_settings.PetId != "cat" || _pet.Model is not IGroundPetVisual || oldHandle != new WindowInteropHelper(_pet).Handle)
+                    throw new Exception("Live cat selection failed");
+                Capture(_settingsWindow, "cat-settings-preview.png");
+                _settingsWindow.Close();
+                _settings.Movement = Movement.Wander; _ground.Reset();
+                GetWindowRect(oldHandle, out _smokePosition);
+            }
+            if (_smokeStep == 24)
+            {
+                GetWindowRect(new WindowInteropHelper(_pet).Handle, out var position);
+                if (position.Left == _smokePosition.Left) throw new Exception("Cat did not walk");
+                if (((IGroundPetVisual)_pet.Model).PoseUpdates < 5) throw new Exception("Cat is not animating");
+                Capture(_pet, "cat-walking-preview.png");
+                _paused = true; ((IGroundPetVisual)_pet.Model).Activity = PetActivity.Sitting;
+            }
+            if (_smokeStep == 26) { Capture(_pet, "cat-sitting-preview.png"); ((IGroundPetVisual)_pet.Model).Activity = PetActivity.Grooming; }
+            if (_smokeStep == 28) { Capture(_pet, "cat-grooming-preview.png"); ((IGroundPetVisual)_pet.Model).Activity = PetActivity.Sleeping; }
+            if (_smokeStep == 30) Capture(_pet, "cat-sleeping-preview.png");
+            if (_smokeStep == 31) ShowBreak(BreakKind.Water);
+            if (_smokeStep == 32)
+            {
+                if (_overlay == null || FindModel(_overlay) is not IGroundPetVisual || _nextAudio != null) throw new Exception("Cat reminder model/audio incorrect");
+                Capture(_overlay, "cat-reminder-preview.png");
+                FindButton(_overlay, "Snooze 5 min").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (_overlay != null) throw new Exception("Cat reminder snooze failed");
+            }
+            if (_smokeStep == 33)
+            {
+                ShowReminder(new(null, null, "Cat reminder", "Time to check your task", ReminderStyle.Popup));
+                if (_overlay == null || _overlay.ShowActivated || !_pet.IsVisible) throw new Exception("Cat popup state incorrect");
+                Capture(_overlay, "cat-popup-preview.png");
+                FindButton(_overlay, "Done").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                OpenSettings();
+                FindPetPicker(_settingsWindow!).SelectedValue = "cat-3d";
+                FindButton(_settingsWindow!, "Save").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (_pet.Model is not CatModel) throw new Exception("Preserved 3D preview unavailable");
+                FindPetPicker(_settingsWindow!).SelectedValue = "dragon";
+                FindButton(_settingsWindow!, "Save").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (_pet.Model is not DragonModel) throw new Exception("Switching back to dragon failed");
+                File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "smoke-test.log"), "PASS: live cat selection through settings; stable host; walking; sitting/grooming/sleeping previews; silent full-screen cat reminder and snooze; cat popup; switch back to dragon.\n");
+            }
+            if (_smokeStep == 34)
+            {
+                FindPetPicker(_settingsWindow!).SelectedValue = "cat";
+                FindButton(_settingsWindow!, "Save").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (_pet.Model is not IInteractivePetVisual) throw new Exception("2D cat interaction capability missing");
+                Capture(_settingsWindow!, "cat-interaction-settings.png");
+                _settingsWindow!.Close();
+                _paused = false; _settings.Movement = Movement.Wander; _ground.Reset();
+                var item = ContextMenu().Items.OfType<MenuItem>().Single(i => Equals(i.Header, "Give a treat"));
+                item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                GetWindowRect(new WindowInteropHelper(_pet).Handle, out _smokePosition);
+            }
+            if (_smokeStep == 35)
+            {
+                var cat = (IInteractivePetVisual)_pet.Model;
+                if (cat.CurrentInteraction != PetInteraction.Treat) throw new Exception("Treat menu action failed");
+                GetWindowRect(new WindowInteropHelper(_pet).Handle, out var position);
+                if (position.Left != _smokePosition.Left || position.Top != _smokePosition.Top) throw new Exception("Cat moved away during interaction");
+                Capture(_pet, "cat-treat-preview.png"); InteractWithPet(PetInteraction.Play);
+            }
+            if (_smokeStep == 36) { Capture(_pet, "cat-play-preview.png"); InteractWithPet(PetInteraction.Pet); }
+            if (_smokeStep == 37) { Capture(_pet, "cat-pet-preview.png"); InteractWithPet(PetInteraction.Nap); }
+            if (_smokeStep == 39)
+            {
+                if (((IInteractivePetVisual)_pet.Model).CurrentInteraction != PetInteraction.Nap) throw new Exception("Requested nap did not stay active");
+                Capture(_pet, "cat-nap-preview.png"); InteractWithPet(PetInteraction.Wake);
+            }
+            if (_smokeStep == 40) Capture(_pet, "cat-wake-preview.png");
+            if (_smokeStep == 41)
+            {
+                OpenSettings();
+                FindButton(_settingsWindow!, "Play with yarn").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (((IInteractivePetVisual)_pet.Model).CurrentInteraction != PetInteraction.Play) throw new Exception("Settings interaction action failed");
+                ((IInteractivePetVisual)_pet.Model).CancelInteraction();
+                if (((IInteractivePetVisual)_pet.Model).IsInteracting) throw new Exception("Cancel reaction failed");
+                File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "smoke-test.log"), "PASS: treat through context menu; stationary interaction; yarn, petting, nap and wake previews; settings action; cancel reaction.\n");
                 Quit();
             }
         }
@@ -141,6 +226,17 @@ internal sealed partial class PetController
             Quit();
         }
     }
+    private static ComboBox FindPetPicker(DependencyObject parent)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is ComboBox box && box.SelectedValuePath == "Id") return box;
+            try { return FindPetPicker(child); } catch (InvalidOperationException) { }
+        }
+        throw new InvalidOperationException("Pet picker missing");
+    }
+
     private void AssertPetClearance()
     {
         // Rotation alone must neither resize the host nor clip rendered pixels at its edges.

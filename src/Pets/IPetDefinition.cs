@@ -13,10 +13,15 @@ internal interface IPetVisual
 
 internal sealed record PetPresentation(FrameworkElement View, IPetVisual Visual);
 
+internal enum PetLocomotion { Flying, Ground }
+internal enum PetActivity { Walking, Sitting, Grooming, Sleeping }
+internal interface IGroundPetVisual : IPetVisual { PetActivity Activity { get; set; } }
+
 internal interface IPetDefinition
 {
     string Id { get; }
     string DisplayName { get; }
+    PetLocomotion Locomotion => PetLocomotion.Flying;
     string? IntroAudio { get; }
     string? ReminderAudio(BreakKind kind);
     PetPresentation CreatePresentation(double width, bool reminder);
