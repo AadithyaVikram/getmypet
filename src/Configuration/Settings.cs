@@ -1,17 +1,21 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace DragonBreak;
 
 public enum Movement { Wander, Follow, Stay }
-public enum BreakKind { Water, Stretch }
 
 public sealed record Settings
 {
+    public ReminderStyle Style { get; set; } = ReminderStyle.FullScreen;
+    public List<CustomReminder> CustomReminders { get; set; } = new();
     public int WaterMinutes { get; set; } = 45;
     public int StretchMinutes { get; set; } = 60;
     public int BreakSeconds { get; set; } = 30;
+    public int PetSizePercent { get; set; } = 100;
     public int Volume { get; set; } = 40;
     public bool Muted { get; set; }
     public bool QuietHours { get; set; } = true;
@@ -21,9 +25,15 @@ public sealed record Settings
 
     public Settings Validate() => this with
     {
+        Style = Enum.IsDefined(Style) ? Style : ReminderStyle.FullScreen,
+        CustomReminders = (CustomReminders ?? new()).Where(r => r != null && !string.IsNullOrWhiteSpace(r.Message))
+            .DistinctBy(r => r.Id).Select(r => r with { Id = r.Id == Guid.Empty ? Guid.NewGuid() : r.Id,
+                Message = r.Message.Trim()[..Math.Min(r.Message.Trim().Length, 240)], Minutes = Math.Clamp(r.Minutes, 1, 10080),
+                Style = Enum.IsDefined(r.Style) ? r.Style : ReminderStyle.Popup }).ToList(),
         WaterMinutes = Math.Clamp(WaterMinutes, 1, 240),
         StretchMinutes = Math.Clamp(StretchMinutes, 1, 240),
         BreakSeconds = Math.Clamp(BreakSeconds, 5, 300),
+        PetSizePercent = Math.Clamp(PetSizePercent, 50, 200),
         Volume = Math.Clamp(Volume, 0, 100),
         Movement = Enum.IsDefined(Movement) ? Movement : Movement.Wander
     };
@@ -43,26 +53,4 @@ public sealed record Settings
     }
 
     public bool IsQuiet(DateTimeOffset now) => QuietHours && (now.LocalDateTime.Hour >= 22 || now.LocalDateTime.Hour < 8);
-}
-
-public sealed class Schedule
-{
-    public DateTimeOffset WaterDue { get; private set; }
-    public DateTimeOffset StretchDue { get; private set; }
-    public Schedule(Settings settings, DateTimeOffset now) => Reset(settings, now);
-    public void Reset(Settings s, DateTimeOffset now)
-    {
-        WaterDue = now.AddMinutes(s.WaterMinutes);
-        StretchDue = now.AddMinutes(s.StretchMinutes);
-    }
-    public BreakKind? Due(DateTimeOffset now) => now < WaterDue && now < StretchDue ? null
-        : WaterDue <= StretchDue ? BreakKind.Water : BreakKind.Stretch;
-    public void Finish(BreakKind kind, bool snooze, Settings s, DateTimeOffset now)
-    {
-        if (kind == BreakKind.Water) WaterDue = now.AddMinutes(snooze ? 5 : s.WaterMinutes);
-        else StretchDue = now.AddMinutes(snooze ? 5 : s.StretchMinutes);
-        // Give the user space when water and stretch become due together.
-        if (WaterDue < now.AddMinutes(2)) WaterDue = now.AddMinutes(2);
-        if (StretchDue < now.AddMinutes(2)) StretchDue = now.AddMinutes(2);
-    }
 }

@@ -6,9 +6,13 @@
     <UseWindowsForms>true</UseWindowsForms>
     <StartupObject>DragonBreak.Program</StartupObject>
     <AssemblyName>DragonBreak</AssemblyName>
+    <ApplicationIcon>Assets\Brand\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="Assets\*.wav" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Brand\app.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="src\Pets\**\Assets\Audio\*.wav" CopyToOutputDirectory="PreserveNewest">
+      <TargetPath>Pets\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    </Content>
   </ItemGroup>
 </Project>

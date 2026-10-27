@@ -21,7 +21,7 @@ internal static class AudioTest
             File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "audio-test.log"), (success ? "PASS: " : "FAIL: ") + detail + "\n");
             app.Shutdown(exit);
         }
-        void Play() { player.Open(new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", clips[index]))); player.Play(); }
+        void Play() { player.Open(new Uri(Path.Combine(AppContext.BaseDirectory, "Pets", "Dragon", "Assets", "Audio", clips[index]))); player.Play(); }
         player.MediaOpened += (_, _) => opened++;
         player.MediaFailed += (_, e) => Finish(false, e.ErrorException.Message);
         player.MediaEnded += (_, _) =>

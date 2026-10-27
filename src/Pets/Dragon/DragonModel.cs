@@ -10,7 +10,7 @@ namespace DragonBreak;
 
 // Live geometry: a curved spine, a tube skin, articulated legs, and a turning head.
 // No sprite frames or image textures are used to render the dragon.
-internal sealed class DragonModel : Grid
+internal sealed class DragonModel : Grid, IPetVisual
 {
     private const int Rings = 64, Sides = 12;
     private readonly MeshGeometry3D _greenSkin = new(), _bellySkin = new();
@@ -24,6 +24,8 @@ internal sealed class DragonModel : Grid
     private readonly Stopwatch _time = Stopwatch.StartNew();
     public bool FacingRight { get; set; } = true;
     public double Bank { get; set; }
+    public double TravelHeadingDegrees { get; set; }
+    private readonly RotateTransform _flightHeading = new();
     public int PoseUpdates { get; private set; }
     public bool Paused { get; set; }
     public OrthographicCamera Camera { get; }
@@ -43,7 +45,8 @@ internal sealed class DragonModel : Grid
         var view = new Viewport3D
         {
             Camera = Camera,
-            ClipToBounds = false
+            ClipToBounds = false,
+            RenderTransform = _flightHeading, RenderTransformOrigin = new Point(.5, .5)
         };
         Children.Add(view);
         var scene = new Model3DGroup();
@@ -129,6 +132,8 @@ internal sealed class DragonModel : Grid
         }
         _turn.Angle += ((FacingRight ? 0 : 180) - _turn.Angle) * .07;
         _bank.Angle += (Math.Clamp(Bank, -28, 28) - _bank.Angle) * .08;
+        double relativeHeading = PetHeading.Relative(TravelHeadingDegrees, FacingRight);
+        _flightHeading.Angle += PetHeading.Delta(_flightHeading.Angle, relativeHeading) * .18;
         PoseUpdates++;
     }
 

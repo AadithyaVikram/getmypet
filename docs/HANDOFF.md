@@ -2,7 +2,7 @@
 
 ## Outcome the user wants
 
-A faithful anime-style Shenron desktop companion: green scales, golden belly, red eyes, antlers, whiskers and clawed legs. It should fly with continuous body and tail articulation, coil and turn through the screen, travel from an edge to the centre, and follow the pointer optionally. Water and stretch breaks enlarge it over the current monitor, add fire and a low roar, then speak the reminder. The user wants low CPU, GPU, RAM, battery, and download cost, with a simple offline app.
+A faithful anime-style Shenron desktop companion: green scales, golden belly, red eyes, antlers, whiskers and clawed legs. It should fly with continuous body and tail articulation, coil and turn through the screen, travel primarily along screen edges with rare brief crossings, and follow the pointer optionally. Water and stretch breaks enlarge it over the current monitor, add fire and a low roar, then speak the reminder. The user wants low CPU, GPU, RAM, battery, and download cost, with a simple offline app.
 
 The user explicitly rejected a still image sliding around and a sprite sheet as the final solution. The current procedural 3D dragon proves continuous motion, but its simple head/body are not the desired final visual fidelity. Replace it when a better asset/renderer is available; retaining this exact mesh is not a requirement.
 
@@ -10,24 +10,27 @@ The user explicitly rejected a still image sliding around and a sprite sheet as 
 
 | File | Responsibility |
 | --- | --- |
-| `DragonModel.cs` | Procedural WPF mesh, 64 sampled spine points, tube skin, head, antlers, whiskers, articulated legs, camera |
-| `PetController.cs` | Curved flight paths, following, tray, scheduling, audio playback, session/power handling, UI smoke test |
-| `Windows.cs` | Transparent desktop pet, reminder screen/fire effect, settings |
-| `Settings.cs` | JSON preferences and reminder deadlines |
-| `ModelPreview.cs` | Drag-to-orbit viewer and static-pose export |
-| `ModelExport.cs` | GLB geometry/material export, evaluated pose only |
-| `Program.cs`, `AudioTest.cs` | Entry point and self/audio checks |
-| `Assets/*.wav`, `scripts/Make-Audio.ps1` | Shipped offline audio; optional regeneration with Windows SAPI |
-| `Assets/*.png` | Generated reference illustrations, not runtime animation |
-| `exports/` | Portable static GLB, screenshot, Khronos validation report |
+| `src/Pets/Dragon/DragonModel.cs` | Procedural WPF mesh, 64 sampled spine points, tube skin, head, antlers, whiskers, articulated legs, camera |
+| `src/App/PetController.cs` | Travel along screen edges, following, tray, scheduling, audio playback, session/power handling |
+| `src/UI/` | Transparent desktop pet, reminder screen, settings |
+| `src/Configuration/Settings.cs` | JSON preferences |
+| `src/Pets/Dragon/DragonPet.cs` | Pet presentation, flame effect and audio mapping |
+| `src/Reminders/` | Reminder records and scheduling |
+| `tests/SelfTest.cs`, `tests/UISmokeTest.cs` | Self-checks and UI regression checks |
+| `tools/ModelPreview.cs` | Drag-to-orbit viewer and static-pose export |
+| `tools/ModelExport.cs` | GLB geometry/material export, evaluated pose only |
+| `src/App/Program.cs`, `tests/AudioTest.cs` | Entry point and audio checks |
+| `src/Pets/Dragon/Assets/Audio/*.wav`, `scripts/Make-Audio.ps1` | Shipped offline audio; optional regeneration with Windows SAPI |
+| `src/Pets/Dragon/Assets/References/*.png` | Generated reference illustrations, not runtime animation |
+| `src/Pets/Dragon/Exports/` | Portable static GLB, screenshot, Khronos validation report |
 
 The packaged app uses no network service. Windows speech was rendered into WAV files and lowered in pitch. The roar is synthesized; neither sound is the original actor/recording. Startup is opt-in. Settings and installed binaries live under separate per-user LocalAppData folders (see README).
 
 ## Model/export limitations
 
-`exports/Dragon-static.glb` passed Khronos validation with zero errors/warnings. It contains 5,254 vertices, 7,080 triangles, 90 primitives/material entries and no textures, skeleton, morph targets, or animation clips. The live C# animation is not embedded in that file. It can be a shape/blockout reference; it is not an animated production asset.
+`src/Pets/Dragon/Exports/Dragon-static.glb` passed Khronos validation with zero errors/warnings. It contains 5,254 vertices, 7,080 triangles, 90 primitives/material entries and no textures, skeleton, morph targets, or animation clips. The live C# animation is not embedded in that file. It can be a shape/blockout reference; it is not an animated production asset.
 
-WPF `Viewport3D` does not currently load GLB. Exporting a rigged replacement is only half of integration: either implement an appropriate importer/animation path or choose a renderer that supports the chosen asset, with measured cost. Avoid claiming that dropping a GLB into `Assets` makes it work.
+WPF `Viewport3D` does not currently load GLB. Exporting a rigged replacement is only half of integration: either implement an appropriate importer/animation path or choose a renderer that supports the chosen asset, with measured cost. Avoid claiming that dropping a GLB into `src/Pets/Dragon/Assets` makes it work.
 
 For a finished replacement, retain an editable source model and a portable GLB containing the rig, materials, and named idle/flight/coil/roar clips. Check skin weights, joint names, bounding boxes, scale, clip looping, and dependencies on external textures. Match the reference's silhouette and face before spending detail on hidden surfaces.
 
@@ -41,7 +44,7 @@ Priorities: reuse transforms/buffers; eliminate unnecessary rendering when hidde
 
 ## Verification and remaining checks
 
-`dragonbreak.cmd test` builds and checks scheduling/settings, 3D initialization, animated geometry, curved flight, pointer following, pause, reminder dismissal and snoozing, settings UI, and muted playback of all three audio clips. Read each PASS log; a successful process exit alone is insufficient for the UI test.
+`dragonbreak.cmd test` builds and checks scheduling/settings, 3D initialization, animated geometry, edge wandering, pointer following, pause, reminder dismissal and snoozing, settings UI, and muted playback of all three audio clips. Read each PASS log; a successful process exit alone is insufficient for the UI test.
 
 After a renderer/model change, inspect the actual animation, including turns, loop seams and face/limb deformation. Exercise Esc, Skip, Snooze and volume; test on multiple DPI monitors. Real session-lock/suspend recovery, GPU/power measurements, long-duration stability, and exact Shenron fidelity remain manual/unverified work. Audio checks validate playback, not subjective voice quality.
 

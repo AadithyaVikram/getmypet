@@ -15,28 +15,26 @@ using Forms = System.Windows.Forms;
 
 namespace DragonBreak;
 
-internal sealed class PetController : IDisposable
+internal sealed partial class PetController : IDisposable
 {
     private readonly Application _app;
     private readonly bool _preview;
     private Settings _settings;
     private readonly Schedule _schedule;
     private readonly PetWindow _pet;
+    private readonly IPetDefinition _definition = PetCatalog.Default;
     private readonly Forms.NotifyIcon _tray;
     private readonly DispatcherTimer _movement = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly MediaPlayer _audio = new();
     private SettingsWindow? _settingsWindow;
     private BreakWindow? _overlay;
-    private BreakKind _kind;
+    private ReminderRequest? _request;
     private DateTimeOffset _breakEnd;
     private bool _paused, _suspended, _quiet, _stopping;
     private string? _nextAudio;
     private double _targetX, _targetY;
-    private DateTimeOffset _nextWander;
-    private DateTimeOffset _routeStart;
-    private Point _route0, _route1, _route2, _route3;
-    private int _routeNumber;
+    private readonly EdgeWander _wander = new();
     private readonly Stopwatch _elapsed = Stopwatch.StartNew();
     private long _lastMovement;
     private int _smokeStep;
@@ -48,10 +46,12 @@ internal sealed class PetController : IDisposable
         _app = app; _preview = preview;
         _settings = preview ? new Settings { Muted = true, QuietHours = false, BreakSeconds = 15 } : Settings.Load();
         _schedule = new Schedule(_settings, DateTimeOffset.Now);
-        _pet = new PetWindow(OpenSettings, ContextMenu);
+        _pet = new PetWindow(OpenSettings, ContextMenu, _definition);
+        _pet.ApplySize(_settings.PetSizePercent);
+        _pet.SourceInitialized += (_, _) => ResizePet();
         _pet.Left = SystemParameters.WorkArea.Right - _pet.Width - 25;
         _pet.Top = SystemParameters.WorkArea.Bottom - _pet.Height - 25;
-        _tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Information, Text = "DragonBreak · right-click for controls", Visible = !preview };
+        _tray = new Forms.NotifyIcon { Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "Assets", "Brand", "app.ico")), Text = "DragonBreak · right-click for controls", Visible = !preview };
         _tray.DoubleClick += (_, _) => OpenSettings();
         _tray.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Right) { var m = ContextMenu(); m.IsOpen = true; } };
         _movement.Tick += (_, _) => MovePet();
@@ -81,7 +81,7 @@ internal sealed class PetController : IDisposable
 
     private void Play(string name)
     {
-        _audio.Open(new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", name)));
+        _audio.Open(new Uri(Path.Combine(AppContext.BaseDirectory, name)));
         _audio.Volume = _settings.Volume / 100d;
         _audio.Play();
     }
@@ -101,30 +101,48 @@ internal sealed class PetController : IDisposable
         bool quiet = _settings.IsQuiet(now);
         if (_paused || _suspended || quiet) { _quiet = quiet; return; }
         if (_quiet) { _quiet = false; _schedule.Reset(_settings, now); }
-        if (_schedule.Due(now) is BreakKind kind) ShowBreak(kind);
+        if (_schedule.Next(_settings, now) is ReminderRequest request) ShowReminder(request);
     }
 
     private void ShowBreak(BreakKind kind)
     {
+        ShowReminder(_schedule.BuiltIn(kind, _settings));
+    }
+
+    private void ShowReminder(ReminderRequest request)
+    {
         if (_overlay != null || _suspended || _stopping) return;
-        _kind = kind;
-        _overlay = new BreakWindow(kind, Finish, () => { _settings.Muted = true; StopAudio(); SaveSettings(_settings); });
+        _request = request;
+        bool popup = request.Style == ReminderStyle.Popup;
+        _overlay = new BreakWindow(request, Finish, () => { _settings.Muted = true; StopAudio(); SaveSettings(_settings); }, _definition);
         var hwnd = new WindowInteropHelper(_pet).Handle;
-        var bounds = Forms.Screen.FromHandle(hwnd).Bounds;
+        var screen = Forms.Screen.FromHandle(hwnd);
+        var bounds = popup ? screen.WorkingArea : screen.Bounds;
         _overlay.SourceInitialized += (_, _) =>
         {
             var overlayHwnd = new WindowInteropHelper(_overlay).Handle;
-            SetWindowPos(overlayHwnd, new IntPtr(-1), bounds.X, bounds.Y, bounds.Width, bounds.Height, 0x0040);
+            if (popup)
+            {
+                var source = PresentationSource.FromVisual(_overlay);
+                double scale = source?.CompositionTarget?.TransformToDevice.M11 ?? 1;
+                int width = Math.Min(bounds.Width, (int)(420 * scale)), height = Math.Min(bounds.Height, (int)(330 * scale));
+                SetWindowPos(overlayHwnd, new IntPtr(-1), bounds.Right - width, bounds.Bottom - height, width, height, 0x0050);
+                int style = GetWindowLong(overlayHwnd, -20);
+                SetWindowLong(overlayHwnd, -20, style | 0x08000000 | 0x00000080);
+            }
+            else SetWindowPos(overlayHwnd, new IntPtr(-1), bounds.X, bounds.Y, bounds.Width, bounds.Height, 0x0040);
         };
         var shown = _overlay;
         _overlay.Closed += (_, _) => { if (ReferenceEquals(_overlay, shown)) Finish(false); };
         _breakEnd = DateTimeOffset.Now.AddSeconds(_settings.BreakSeconds);
         _overlay.Update(_settings.BreakSeconds);
-        _pet.Hide(); _overlay.Show(); _overlay.Activate();
-        if (!_settings.Muted && _settings.Volume > 0)
+        if (!popup) _pet.Hide();
+        _overlay.Show(); if (!popup) _overlay.Activate();
+        if (!popup && request.Kind != null && !_settings.Muted && _settings.Volume > 0)
         {
-            _nextAudio = kind == BreakKind.Water ? "water.wav" : "stretch.wav";
-            Play("roar.wav");
+            _nextAudio = _definition.ReminderAudio(request.Kind.Value);
+            if (_definition.IntroAudio is string intro) Play(intro);
+            else if (_nextAudio is string speech) { _nextAudio = null; Play(speech); }
         }
     }
 
@@ -133,7 +151,8 @@ internal sealed class PetController : IDisposable
         if (_overlay == null) return;
         var window = _overlay; _overlay = null;
         StopAudio(); window.Close();
-        _schedule.Finish(_kind, snooze, _settings, DateTimeOffset.Now);
+        if (_request != null) _schedule.Finish(_request, snooze, _settings, DateTimeOffset.Now);
+        _request = null;
         if (!_stopping && !_suspended) _pet.Show();
         if (_preview && !_smoke) Quit();
     }
@@ -141,7 +160,7 @@ internal sealed class PetController : IDisposable
     private void OpenSettings()
     {
         if (_settingsWindow != null) { _settingsWindow.Activate(); return; }
-        _settingsWindow = new SettingsWindow(_settings, SaveSettings, ShowBreak, Quit);
+        _settingsWindow = new SettingsWindow(_settings, SaveSettings, ShowBreak, Quit, r => ShowReminder(new(null, r.Id, "A little reminder", r.Message, r.Style)));
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
     }
@@ -151,10 +170,27 @@ internal sealed class PetController : IDisposable
         var validated = settings.Validate();
         if (!_preview) validated.Save();
         _settings = validated;
-        _nextWander = DateTimeOffset.MinValue;
+        ResizePet();
+        _wander.Reset();
         _schedule.Reset(_settings, DateTimeOffset.Now);
         _audio.Volume = _settings.Volume / 100d;
         if (_settings.Muted) StopAudio();
+    }
+
+    private void ResizePet()
+    {
+        var hwnd = new WindowInteropHelper(_pet).Handle;
+        if (hwnd == IntPtr.Zero) { _pet.ApplySize(_settings.PetSizePercent); return; }
+        GetWindowRect(hwnd, out var before);
+        var area = Forms.Screen.FromHandle(hwnd).WorkingArea;
+        _pet.ApplySize(_settings.PetSizePercent);
+        _pet.UpdateLayout();
+        var transform = PresentationSource.FromVisual(_pet)?.CompositionTarget?.TransformToDevice;
+        int width = (int)Math.Round(_pet.Width * (transform?.M11 ?? 1));
+        int height = (int)Math.Round(_pet.Height * (transform?.M22 ?? 1));
+        int x = Math.Clamp(before.Left + (before.Right - before.Left - width) / 2, area.Left, Math.Max(area.Left, area.Right - width));
+        int y = Math.Clamp(before.Top + (before.Bottom - before.Top - height) / 2, area.Top, Math.Max(area.Top, area.Bottom - height));
+        SetWindowPos(hwnd, IntPtr.Zero, x, y, width, height, 0x0014);
     }
 
     private ContextMenu ContextMenu()
@@ -184,6 +220,7 @@ internal sealed class PetController : IDisposable
         var area = screen.WorkingArea;
         int width = rect.Right - rect.Left, height = rect.Bottom - rect.Top;
         double right = Math.Max(area.Left, area.Right - width), bottom = Math.Max(area.Top, area.Bottom - height);
+        if (_settings.Movement != Movement.Wander) _wander.Reset();
         if (_settings.Movement == Movement.Stay)
         {
             SetWindowPos(hwnd, IntPtr.Zero, (int)Math.Clamp(rect.Left, area.Left, right), (int)Math.Clamp(rect.Top, area.Top, bottom), 0, 0, 0x0015);
@@ -192,30 +229,28 @@ internal sealed class PetController : IDisposable
         if (_settings.Movement == Movement.Follow) { _targetX = cursor.X + 35; _targetY = cursor.Y + 30; }
         else
         {
-            var now = DateTimeOffset.Now;
-            if (now >= _nextWander)
-            {
-                double rangeX = right - area.Left, rangeY = bottom - area.Top;
-                _route0 = new Point(rect.Left, rect.Top);
-                // Alternate broad edge-to-centre arcs, then bank out toward another corner.
-                _route3 = _routeNumber % 2 == 0
-                    ? new Point(area.Left + rangeX * .5, area.Top + rangeY * .48)
-                    : new Point(area.Left + rangeX * (_routeNumber % 4 == 1 ? .05 : .95), area.Top + rangeY * (_routeNumber % 6 == 1 ? .08 : .88));
-                _route1 = new Point(area.Left + rangeX * (_routeNumber % 2 == 0 ? .05 : .95), area.Top + rangeY * .08);
-                _route2 = new Point(area.Left + rangeX * (_routeNumber % 2 == 0 ? .95 : .05), area.Top + rangeY * .90);
-                _routeStart = now; _nextWander = now.AddSeconds(9); _routeNumber++;
-            }
-            double t = Math.Clamp((now - _routeStart).TotalSeconds / 9, 0, 1), inv = 1 - t;
-            _targetX = inv * inv * inv * _route0.X + 3 * inv * inv * t * _route1.X + 3 * inv * t * t * _route2.X + t * t * t * _route3.X;
-            _targetY = inv * inv * inv * _route0.Y + 3 * inv * inv * t * _route1.Y + 3 * inv * t * t * _route2.Y + t * t * t * _route3.Y;
+            var next = _wander.Advance(new Point(rect.Left, rect.Top), new Rect(area.Left, area.Top, right - area.Left, bottom - area.Top), seconds);
+            double wanderDx = next.X - rect.Left, wanderDy = next.Y - rect.Top;
+            OrientPet(wanderDx, wanderDy);
+            SetWindowPos(hwnd, IntPtr.Zero, (int)Math.Round(next.X), (int)Math.Round(next.Y), 0, 0, 0x0015);
+            return;
         }
         _targetX = Math.Clamp(_targetX, area.Left, right); _targetY = Math.Clamp(_targetY, area.Top, bottom);
         double dx = _targetX - rect.Left, dy = _targetY - rect.Top, distance = Math.Sqrt(dx * dx + dy * dy);
         if (distance < 1) return;
-        if (Math.Abs(dx) > 1) _pet.Model.FacingRight = dx > 0;
-        _pet.Model.Bank = -Math.Atan2(dy, Math.Max(1, Math.Abs(dx))) * 180 / Math.PI * .4;
+        OrientPet(dx, dy);
         double step = Math.Min(distance, (_settings.Movement == Movement.Follow ? 500 : 300) * seconds);
         SetWindowPos(hwnd, IntPtr.Zero, (int)(rect.Left + dx / distance * step), (int)(rect.Top + dy / distance * step), 0, 0, 0x0015);
+    }
+
+    private void OrientPet(double dx, double dy)
+    {
+        double distance = Math.Sqrt(dx * dx + dy * dy);
+        if (distance < .1) return;
+        // Preserve facing near vertical so tiny horizontal rounding errors cannot flip the model.
+        if (Math.Abs(dx) > distance * .2) _pet.Model.FacingRight = dx > 0;
+        _pet.Model.TravelHeadingDegrees = PetHeading.FromVelocity(dx, dy);
+        _pet.Model.Bank = 0;
     }
 
     private void SessionChanged(object sender, SessionSwitchEventArgs e) => _app.Dispatcher.BeginInvoke(() =>
@@ -231,95 +266,6 @@ internal sealed class PetController : IDisposable
         if (e.Mode == PowerModes.Resume) { _suspended = false; _schedule.Reset(_settings, DateTimeOffset.Now); }
     });
 
-    private void SmokeTick()
-    {
-        try
-        {
-            _smokeStep++;
-            if (_smokeStep == 2)
-            {
-                if (_overlay == null) throw new Exception("Water overlay missing");
-                if (FindModel(_overlay).PoseUpdates < 3) throw new Exception("Dragon geometry is not animating");
-                Capture(_overlay, "water-preview.png");
-                FindButton(_overlay, "Snooze 5 min").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                if (_overlay != null || (_schedule.WaterDue - DateTimeOffset.Now).TotalMinutes < 4.9) throw new Exception("Snooze did not close and reschedule");
-            }
-            if (_smokeStep == 3) ShowBreak(BreakKind.Stretch);
-            if (_smokeStep == 5)
-            {
-                if (_overlay == null) throw new Exception("Stretch overlay missing");
-                Capture(_overlay, "stretch-preview.png");
-                var key = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(_overlay), 0, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
-                _overlay.RaiseEvent(key);
-                if (_overlay != null) throw new Exception("Escape did not dismiss");
-            }
-            if (_smokeStep == 6)
-            {
-                if (!_pet.IsVisible) throw new Exception("Pet did not return");
-                OpenSettings();
-            }
-            if (_smokeStep == 7)
-            {
-                if (_settingsWindow == null) throw new Exception("Settings missing");
-                Capture(_settingsWindow, "settings-preview.png");
-                _settingsWindow.Close();
-                _settings.Movement = Movement.Wander; _nextWander = DateTimeOffset.MinValue;
-                GetWindowRect(new WindowInteropHelper(_pet).Handle, out _smokePosition);
-            }
-            if (_smokeStep == 9)
-            {
-                GetWindowRect(new WindowInteropHelper(_pet).Handle, out var current);
-                if (current.Left == _smokePosition.Left && current.Top == _smokePosition.Top) throw new Exception("Curved flight did not move the pet");
-                Capture(_pet, "pet-preview.png");
-                _paused = true; _smokePosition = current;
-            }
-            if (_smokeStep == 10)
-            {
-                GetWindowRect(new WindowInteropHelper(_pet).Handle, out var current);
-                if (current.Left != _smokePosition.Left || current.Top != _smokePosition.Top) throw new Exception("Pause did not stop flight");
-                _paused = false; _settings.Movement = Movement.Follow;
-            }
-            if (_smokeStep == 12)
-            {
-                GetWindowRect(new WindowInteropHelper(_pet).Handle, out var current);
-                if (current.Left == _smokePosition.Left && current.Top == _smokePosition.Top) throw new Exception("Follow did not move the pet");
-                File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "smoke-test.log"), "PASS: continuously animated 3D geometry; water overlay; Snooze click; five-minute reschedule; stretch overlay; Escape dismissal; pet restored; settings opened; curved flight; pause; pointer-follow movement. Audio muted during UI test.\n");
-                Quit();
-            }
-        }
-        catch (Exception ex)
-        {
-            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "smoke-test.log"), "FAIL: " + ex);
-            Quit();
-        }
-    }
-    private static Button FindButton(DependencyObject parent, string title)
-    {
-        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is Button button && Equals(button.Content, title)) return button;
-            try { return FindButton(child, title); } catch (InvalidOperationException) { }
-        }
-        throw new InvalidOperationException("Button missing: " + title);
-    }
-    private static DragonModel FindModel(DependencyObject parent)
-    {
-        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is DragonModel model) return model;
-            try { return FindModel(child); } catch (InvalidOperationException) { }
-        }
-        throw new InvalidOperationException("Dragon model missing");
-    }
-    private static void Capture(Window window, string filename)
-    {
-        var bitmap = new RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(window);
-        var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file = File.Create(Path.Combine(AppContext.BaseDirectory, filename)); png.Save(file);
-    }
     private void Quit() { _stopping = true; Finish(false); _app.Shutdown(); }
     public void Dispose()
     {
@@ -329,6 +275,8 @@ internal sealed class PetController : IDisposable
     }
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeRect { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hwnd, int index);
+    [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
 }
