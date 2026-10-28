@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 // Each instance owns its view and animation state. The shared host controls position and direction.
 internal interface IPetVisual
@@ -24,5 +24,6 @@ internal interface IPetDefinition
     PetLocomotion Locomotion => PetLocomotion.Flying;
     string? IntroAudio { get; }
     string? ReminderAudio(BreakKind kind);
+    string? InteractionAudio(PetInteraction action) => null;
     PetPresentation CreatePresentation(double width, bool reminder);
 }

@@ -4,8 +4,12 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <StartupObject>DragonBreak.Program</StartupObject>
-    <AssemblyName>DragonBreak</AssemblyName>
+    <StartupObject>Petcompanion.Program</StartupObject>
+    <AssemblyName>Petcompanion</AssemblyName>
+    <RootNamespace>Petcompanion</RootNamespace>
+    <Product>Petcompanion</Product>
+    <Title>Petcompanion</Title>
+    <Description>Your desktop companions and gentle reminders</Description>
     <ApplicationIcon>Assets\Brand\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>

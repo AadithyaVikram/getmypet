@@ -10,7 +10,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal sealed class PetWindow : Window
 {
@@ -28,8 +28,22 @@ internal sealed class PetWindow : Window
             : "Drag to move; right-click for controls; double-click for settings";
         _presentationView = presentation.View;
         _body.Child = new Viewbox { Child = presentation.View, Stretch = Stretch.Uniform };
-        Title = "DragonBreak pet";
+        Title = "Petcompanion pet";
     }
+    public void SetClickThrough(bool enabled)
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        int style = GetWindowLong(hwnd, -20);
+        SetWindowLong(hwnd, -20, enabled ? style | 0x20 : style & ~0x20);
+        SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, 0x0037);
+        _pressPoint = null;
+        _body.ReleaseMouseCapture();
+    }
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hwnd, int index);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
+
     public void ApplySize(int percent)
     {
         double scale = Math.Clamp(percent, 50, 200) / 100d;
@@ -44,7 +58,7 @@ internal sealed class PetWindow : Window
 
     public PetWindow(Action settings, Func<ContextMenu> menu, IPetDefinition definition)
     {
-        Title = "DragonBreak pet"; Width = 380; Height = 380;
+        Title = "Petcompanion pet"; Width = 380; Height = 380;
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         ResizeMode = ResizeMode.NoResize; Topmost = true; ShowInTaskbar = false; ShowActivated = false;
         _body = new Border { Background = Brushes.Transparent, Cursor = Cursors.Hand,

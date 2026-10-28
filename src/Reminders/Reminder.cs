@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 public enum BreakKind { Water, Stretch }
 public enum ReminderStyle { FullScreen, Popup }

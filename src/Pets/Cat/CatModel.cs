@@ -5,7 +5,7 @@ using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 // Articulated procedural 3D cat. Every part is live geometry, with no sprite swapping.
 internal sealed class CatModel : Grid, IGroundPetVisual
@@ -46,7 +46,7 @@ internal sealed class CatModel : Grid, IGroundPetVisual
             Ball(_body, -.62 + i * .28, 1.11, 0, .055, .07, .30, Stripe);
             Ball(_body, -.55 + i * .28, .85, .365, .055, .22, .035, Stripe);
         }
-        Ball(_head, .68, 1.27, 0, .48, .44, .40, Orange);
+        Ball(_head, .68, 1.27, 0, .51, .45, .42, Orange);
         Ball(_head, 1.02, 1.09, .16, .20, .15, .19, Cream);
         Ball(_head, 1.02, 1.09, -.16, .20, .15, .19, Cream);
         Ball(_head, 1.18, 1.17, 0, .06, .045, .07, Pink);
@@ -57,8 +57,8 @@ internal sealed class CatModel : Grid, IGroundPetVisual
             int index = side == -1 ? 0 : 1;
             var eyeGroup = new Model3DGroup();
             Ball(eyeGroup, 0, 0, 0, .055, .105, .11, Eye);
-            Ball(eyeGroup, .044, 0, .018 * side, .022, .08, .027, Dark);
-            Ball(eyeGroup, .054, .033, .026 * side, .012, .018, .015, Cream);
+            Ball(eyeGroup, .044, 0, .018 * side, .027, .085, .031, Dark);
+            Ball(eyeGroup, .065, .033, .026 * side, .014, .022, .017, Cream);
             _eyes[index] = new ScaleTransform3D(1, 1, 1);
             var eyeTransform = new Transform3DGroup(); eyeTransform.Children.Add(_eyes[index]);
             eyeTransform.Children.Add(new TranslateTransform3D(1.04, 1.38, side * .27)); eyeGroup.Transform = eyeTransform;
@@ -67,6 +67,8 @@ internal sealed class CatModel : Grid, IGroundPetVisual
                 Segment(_head, new Point3D(1.04, 1.08, side * .20),
                     new Point3D(1.10, 1.04 + whisker * .055, side * .62), .009, Cream);
             Ball(_head, .69, 1.61, side * .12, .04, .085, .055, Stripe);
+            Segment(_head, new Point3D(1.185, 1.12, 0), new Point3D(1.16, 1.065, side * .055), .009, Dark);
+            Segment(_head, new Point3D(1.16, 1.065, side * .055), new Point3D(1.11, 1.075, side * .09), .009, Dark);
         }
         for (int i = 0; i < 4; i++)
         {
@@ -107,7 +109,7 @@ internal sealed class CatModel : Grid, IGroundPetVisual
             double t = i / (double)(_tail.Length - 1), sway = Math.Sin(_time * 1.8 + t * 2) * .10;
             double x = -.83 - .50 * Math.Sin(t * 2.3), y = .73 + .60 * t, z = sway;
             x += _sleep * (t * 1.8); y -= _sleep * (.42 + .48 * t); z += _sleep * Math.Sin(t * Math.PI) * .50;
-            _tail[i].Transform = Transform(.095 - .035 * t, .14, .095 - .035 * t, new Vector3D(0, 0, 1), 20,
+            _tail[i].Transform = Transform(.105 - .038 * t, .14, .105 - .038 * t, new Vector3D(0, 0, 1), 20,
                 x, y, z);
         }
         double open = _sleep > .5 || _time % 5 < .16 ? .12 : 1;
@@ -129,7 +131,7 @@ internal sealed class CatModel : Grid, IGroundPetVisual
     private static void Ear(Model3DGroup group, double x, double y, double z, Material material, double size)
     {
         var mesh = new MeshGeometry3D { Positions = new Point3DCollection { new(x - .17 * size, y, z - .14 * size),
-            new(x + .17 * size, y, z - .14 * size), new(x + .04 * size, y + .46 * size, z),
+            new(x + .17 * size, y, z - .14 * size), new(x + .04 * size, y + .36 * size, z),
             new(x - .17 * size, y, z + .14 * size), new(x + .17 * size, y, z + .14 * size) },
             TriangleIndices = new Int32Collection { 0, 2, 1, 3, 4, 2, 0, 3, 2, 1, 2, 4, 0, 1, 4, 0, 4, 3 } };
         mesh.Freeze(); group.Children.Add(new GeometryModel3D(mesh, material) { BackMaterial = material });
@@ -140,7 +142,7 @@ internal sealed class CatModel : Grid, IGroundPetVisual
         {
             var mesh = new MeshGeometry3D { Positions = new Point3DCollection {
                 new(x - .105, y + .045, z + side * .14), new(x + .12, y + .045, z + side * .14),
-                new(x + .035, y + .35, z + side * .055) }, TriangleIndices = new Int32Collection { 0, 1, 2 } };
+                new(x + .035, y + .28, z + side * .055) }, TriangleIndices = new Int32Collection { 0, 1, 2 } };
             mesh.Freeze(); group.Children.Add(new GeometryModel3D(mesh, Pink) { BackMaterial = Pink });
         }
     }

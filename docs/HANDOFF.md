@@ -44,7 +44,7 @@ Priorities: reuse transforms/buffers; eliminate unnecessary rendering when hidde
 
 ## Verification and remaining checks
 
-`dragonbreak.cmd test` builds and checks scheduling/settings, 3D initialization, animated geometry, edge wandering, pointer following, pause, reminder dismissal and snoozing, settings UI, and muted playback of all three audio clips. Read each PASS log; a successful process exit alone is insufficient for the UI test.
+`petcompanion.cmd test` builds and checks scheduling/settings, 3D initialization, animated geometry, edge wandering, pointer following, pause, reminder dismissal and snoozing, settings UI, and muted playback of every shipped pet/voice clip. Read each PASS log; a successful process exit alone is insufficient for the UI test.
 
 After a renderer/model change, inspect the actual animation, including turns, loop seams and face/limb deformation. Exercise Esc, Skip, Snooze and volume; test on multiple DPI monitors. Real session-lock/suspend recovery, GPU/power measurements, long-duration stability, and exact Shenron fidelity remain manual/unverified work. Audio checks validate playback, not subjective voice quality.
 
@@ -52,6 +52,10 @@ Runtime and publish scripts are independent of PwdVault. The reference images we
 
 ## Second pet: Orange cat
 
-`src/Pets/Cat/CatModel.cs` owns the procedural cat mesh and walking/resting poses. `CatPet.cs` registers the grounded pet and silent reminder presentation. `src/App/GroundMotion.cs` keeps its Wander and Follow travel along the working-area bottom, and supplies activity states through `IGroundPetVisual`. `Settings.PetId` and the companion selector persist and apply pet changes without replacing the host window. Existing settings keep Dragon as the default; unknown IDs safely fall back. The dragon model viewer and GLB exports remain specific to Dragon. Cat uses no external model, image, or audio assets. Read `docs/ARCHITECTURE.md` for extension points.
+`src/Pets/Cat/CatModel.cs` owns the procedural cat mesh and walking/resting poses. `CatPet.cs` registers the grounded pet and gentle-sound reminder presentation. `src/App/GroundMotion.cs` keeps its Wander and Follow travel along the working-area bottom, and supplies activity states through `IGroundPetVisual`. `Settings.PetId` and the companion selector persist and apply pet changes without replacing the host window. Existing settings keep Dragon as the default; unknown IDs safely fall back. The dragon model viewer and GLB exports remain specific to Dragon. Cat uses no external model, image, or audio assets. Read `docs/ARCHITECTURE.md` for extension points.
 
 The cat now defaults to `Cat2D.cs`: continuously animated vector artwork with mirrored left/right views. `cat-3d` retains the procedural 3D renderer as a selectable comparison; `cat` keeps existing saved choices on the 2D version. Both implement the same grounded activity contract. No raster sprites are required.
+
+## Owl, dashboard and work features
+
+Moon owl lives in `src/Pets/Owl/` with native vector artwork and gentle-sound interactive reminders. Existing cat/dragon renderers have additional visual detail while retaining their animation contracts. The dashboard groups preferences/reminders, previews pets before applying, shows next-reminder status and exposes focus controls. Focus and click-through are documented in README/ARCHITECTURE. `tests/OwlTests.cs` and `tests/FocusTests.cs` cover their models; UI checks cover actual selection, reactions, reminders, native click-through recovery, focus parking and combined session-lock/power-suspend behavior. Do not describe the old static dragon GLB as a fresh export of the refined model.

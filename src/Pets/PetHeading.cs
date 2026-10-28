@@ -1,6 +1,6 @@
 using System;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal static class PetHeading
 {

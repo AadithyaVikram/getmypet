@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 public sealed class Schedule
 {
@@ -30,6 +30,13 @@ public sealed class Schedule
         if (StretchDue < now.AddMinutes(2)) StretchDue = now.AddMinutes(2);
         foreach (var id in _customDue.Keys.ToArray())
             if (_customDue[id] < now.AddMinutes(2)) _customDue[id] = now.AddMinutes(2);
+    }
+    public (string Message, DateTimeOffset Due) Upcoming(Settings settings)
+    {
+        var next = WaterDue <= StretchDue ? (Message: "Water break", Due: WaterDue) : (Message: "Movement break", Due: StretchDue);
+        foreach (var reminder in settings.CustomReminders.Where(r => r.Enabled))
+            if (_customDue.TryGetValue(reminder.Id, out var due) && due < next.Due) next = (reminder.Message, due);
+        return next;
     }
     public DateTimeOffset WaterDue { get; private set; }
     public DateTimeOffset StretchDue { get; private set; }

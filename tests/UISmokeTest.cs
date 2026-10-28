@@ -13,7 +13,7 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 using Forms = System.Windows.Forms;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal sealed partial class PetController
 {
@@ -179,7 +179,7 @@ internal sealed partial class PetController
                 FindPetPicker(_settingsWindow!).SelectedValue = "dragon";
                 FindButton(_settingsWindow!, "Save").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 if (_pet.Model is not DragonModel) throw new Exception("Switching back to dragon failed");
-                File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "smoke-test.log"), "PASS: live cat selection through settings; stable host; walking; sitting/grooming/sleeping previews; silent full-screen cat reminder and snooze; cat popup; switch back to dragon.\n");
+                File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "smoke-test.log"), "PASS: live cat selection through settings; stable host; walking; sitting/grooming/sleeping previews; cat full-screen reminder and snooze; cat popup; switch back to dragon.\n");
             }
             if (_smokeStep == 34)
             {
@@ -217,6 +217,54 @@ internal sealed partial class PetController
                 ((IInteractivePetVisual)_pet.Model).CancelInteraction();
                 if (((IInteractivePetVisual)_pet.Model).IsInteracting) throw new Exception("Cancel reaction failed");
                 File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "smoke-test.log"), "PASS: treat through context menu; stationary interaction; yarn, petting, nap and wake previews; settings action; cancel reaction.\n");
+                FindPetPicker(_settingsWindow!).SelectedValue = "owl";
+                FindButton(_settingsWindow!, "Save").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (_settings.PetId != "owl" || _pet.Model is not Owl2D) throw new Exception("Owl selection failed");
+                Capture(_settingsWindow!, "owl-dashboard-preview.png");
+                _settingsWindow!.Close(); _paused = false; _ground.Reset();
+            }
+            if (_smokeStep == 43) { Capture(_pet, "owl-hopping-preview.png"); InteractWithPet(PetInteraction.Pet); }
+            if (_smokeStep == 44) { Capture(_pet, "owl-pet-preview.png"); InteractWithPet(PetInteraction.Treat); }
+            if (_smokeStep == 45) { Capture(_pet, "owl-treat-preview.png"); InteractWithPet(PetInteraction.Play); }
+            if (_smokeStep == 46) { Capture(_pet, "owl-play-preview.png"); InteractWithPet(PetInteraction.Nap); }
+            if (_smokeStep == 48) { Capture(_pet, "owl-sleep-preview.png"); InteractWithPet(PetInteraction.Wake); }
+            if (_smokeStep == 50) ShowBreak(BreakKind.Water);
+            if (_smokeStep == 51)
+            {
+                if (_overlay == null || FindModel(_overlay) is not Owl2D || _nextAudio != null) throw new Exception("Owl reminder model/audio incorrect");
+                Capture(_overlay, "owl-reminder-preview.png");
+                FindButton(_overlay, "Snooze 5 min").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                OpenSettings();
+                var movement = _settings.Movement; var style = _settings.Style;
+                FindButton(_settingsWindow!, "25 min").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (!_focus.IsActive || movement != _settings.Movement || style != _settings.Style) throw new Exception("Focus changed saved preferences");
+                GetWindowRect(new WindowInteropHelper(_pet).Handle, out _smokePosition);
+                FindButton(_settingsWindow!, "Focus").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Capture(_settingsWindow!, "focus-dashboard-preview.png");
+            }
+            if (_smokeStep == 52)
+            {
+                GetWindowRect(new WindowInteropHelper(_pet).Handle, out var position);
+                if (position.Left != _smokePosition.Left || position.Top != _smokePosition.Top) throw new Exception("Focus pet did not settle");
+                SetSessionLocked(true); SetPowerSuspended(true); SetPowerSuspended(false);
+                if (!_focus.IsPaused || _pet.IsVisible || !_suspended) throw new Exception("Power resume bypassed session lock");
+                SetSessionLocked(false);
+                if (_focus.IsPaused || !_pet.IsVisible) throw new Exception("Unlocked focus did not resume");
+                ToggleClickThrough();
+                if (!_settings.ClickThrough || (GetWindowLong(new WindowInteropHelper(_pet).Handle, -20) & 0x20) == 0) throw new Exception("Click-through style not applied");
+            }
+            if (_smokeStep == 53)
+            {
+                ToggleClickThrough();
+                if (_settings.ClickThrough || (GetWindowLong(new WindowInteropHelper(_pet).Handle, -20) & 0x20) != 0) throw new Exception("Tray did not restore interaction");
+                FindButton(_settingsWindow!, "End session").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (_focus.IsActive) throw new Exception("End focus button failed");
+                ShowReminder(new(null, null, "A little win.", "Your focus session is complete.", ReminderStyle.Popup));
+                bool snoozePresent = false;
+                try { FindButton(_overlay!, "Snooze 5 min"); snoozePresent = true; } catch (InvalidOperationException) { }
+                if (snoozePresent) throw new Exception("Informational completion offers a nonfunctional snooze");
+                FindButton(_overlay!, "Done").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "smoke-test.log"), "PASS: owl selection/hopping/reactions/sleep and reminder; focus parking and unchanged preferences; combined lock/suspend recovery; native click-through and tray restoration; focus controls and completion popup.\n");
                 Quit();
             }
         }

@@ -1,11 +1,12 @@
 using System;
 using System.Windows;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal enum PetInteraction { None, Pet, Boop, Treat, Play, Nap, Wake }
 internal interface IInteractivePetVisual : IPetVisual
 {
+    event Action<PetInteraction>? InteractionStarted;
     bool IsInteracting { get; }
     PetInteraction CurrentInteraction { get; }
     void Interact(PetInteraction action);

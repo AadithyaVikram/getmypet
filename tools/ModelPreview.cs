@@ -8,7 +8,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal sealed class ModelPreview : Window
 {
@@ -16,7 +16,7 @@ internal sealed class ModelPreview : Window
     public ModelPreview()
     {
         Ui.ApplyTheme(this);
-        Title = "DragonBreak · 3D model preview"; Width = 1120; Height = 760;
+        Title = "Petcompanion · 3D model preview"; Width = 1120; Height = 760;
         MinWidth = 700; MinHeight = 500; Background = Ui.Background;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         var model = new DragonModel();

@@ -1,13 +1,14 @@
 using System.Windows;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal sealed class CatPet(bool use3D = false) : IPetDefinition
 {
     public string Id => use3D ? "cat-3d" : "cat";
     public string DisplayName => use3D ? "Orange cat (3D preview)" : "Orange cat (2D)";
     public PetLocomotion Locomotion => PetLocomotion.Ground;
-    public string? IntroAudio => null;
+    public string? IntroAudio => "Pets/Cat/Assets/Audio/mew.wav";
+    public string? InteractionAudio(PetInteraction action) => action is PetInteraction.None or PetInteraction.Nap ? null : IntroAudio;
     public string? ReminderAudio(BreakKind kind) => null;
     public PetPresentation CreatePresentation(double width, bool reminder)
     {

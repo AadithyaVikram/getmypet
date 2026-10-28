@@ -1,7 +1,7 @@
 using System;
 using System.Windows;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 // Prefer an outer band rather than the exact border. All positions are window top-left coordinates.
 internal sealed class EdgeWander

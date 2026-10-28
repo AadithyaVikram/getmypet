@@ -10,7 +10,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal sealed class DragonPet : IPetDefinition
 {
@@ -48,7 +48,15 @@ internal sealed class DragonPet : IPetDefinition
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(.6, 1.15, TimeSpan.FromSeconds(.27)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(.7, 1.2, TimeSpan.FromSeconds(.36)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
             flame.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(.75, 1, TimeSpan.FromSeconds(.23)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
-            fireLayer.Children.Add(flame); grid.Children.Add(fireLayer);
+            fireLayer.Children.Add(flame);
+            var core = new System.Windows.Shapes.Path
+            {
+                Data = flame.Data, Fill = new SolidColorBrush(Color.FromRgb(255, 245, 190)),
+                Width = width * .15, Height = width * .075, Stretch = Stretch.Fill,
+                RenderTransformOrigin = new Point(0, .5), RenderTransform = scale
+            };
+            Canvas.SetLeft(core, width * .80); Canvas.SetTop(core, width * .565);
+            fireLayer.Children.Add(core); grid.Children.Add(fireLayer);
         }
         return new PetPresentation(grid, image);
     }

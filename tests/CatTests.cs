@@ -2,7 +2,7 @@ using System;
 using System.Text.Json;
 using System.Windows;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal static class CatTests
 {
@@ -11,7 +11,7 @@ internal static class CatTests
         check(JsonSerializer.Deserialize<Settings>("{}")!.Validate().PetId == "dragon", "Legacy settings retain dragon");
         check(new Settings { PetId = "missing" }.Validate().PetId == "dragon", "Unknown pet falls back safely");
         check(JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(new Settings { PetId = "cat" }))!.Validate().PetId == "cat", "Cat selection persists");
-        check(PetCatalog.Find("cat").Locomotion == PetLocomotion.Ground && PetCatalog.Find("cat").IntroAudio == null, "Cat is grounded and has no dragon roar");
+        check(PetCatalog.Find("cat").Locomotion == PetLocomotion.Ground && PetCatalog.Find("cat").IntroAudio?.EndsWith("mew.wav", StringComparison.Ordinal) == true, "Cat is grounded and has its own mew");
         check(GroundMotion.ActivityAt(1) == PetActivity.Walking && GroundMotion.ActivityAt(10) == PetActivity.Sitting &&
             GroundMotion.ActivityAt(14) == PetActivity.Grooming && GroundMotion.ActivityAt(20) == PetActivity.Sleeping &&
             GroundMotion.ActivityAt(33) == PetActivity.Walking, "Cat activity cycle");

@@ -1,12 +1,12 @@
-# DragonBreak
+# Petcompanion
 
-An offline Windows desktop companion with a flying dragon and a sleepy orange cat. A live 3D dragon bends its spine continuously, paddles its legs, and sweeps its tail. It wanders through varied outer-screen positions with brief crossings, turns to face its direction of travel, or follows your pointer. Reminders can use a compact popup or a full-screen presentation of your selected pet. Full-screen dragon reminders include flame, roar and voice; cat reminders are silent.
+An offline Windows desktop companion with a flying dragon, a sleepy orange cat, and a curious Moon owl. A live 3D dragon bends its spine continuously, paddles its legs, and sweeps its tail. It wanders through varied outer-screen positions with brief crossings, turns to face its direction of travel, or follows your pointer. Reminders can use a compact popup or a full-screen presentation of your selected pet. Full-screen dragon reminders include flame, roar and voice; cat reminders use a gentle mew.
 
 ## Use
 
-Open **DragonBreak** from the Desktop or Start menu. Settings open alongside the pet. Closing settings leaves the pet running.
+Open **Petcompanion** from the Desktop or Start menu. Settings open alongside the pet. Closing settings leaves the pet running.
 
-- Choose **Dragon** or **Orange cat** under **Your companion** in Settings and click **Save** to switch immediately. Your choice persists across restarts.
+- Choose **Dragon**, **Orange cat**, or **Moon owl** under **Your companion** in Settings and click **Save** to switch immediately. Your choice persists across restarts.
 - Drag the pet to place it. Right-click it or its tray icon for settings, movement modes, pause, preview, mute, and quit. Double-click the pet for settings.
 - **Wander** flies between varied positions in the outer areas of its current monitor. **Follow** moves toward your pointer, with a gap. **Stay** keeps the pet in place while its body keeps moving.
 - Water defaults to every 45 minutes and movement to every 60 minutes. These are editable preferences, not medical recommendations. Save restarts the timers.
@@ -23,14 +23,14 @@ Requires Windows x64 and .NET SDK 10.0.400 (the published app bundles its runtim
 
 ```powershell
 .\init.cmd                  # Restore, build, and run self-checks
-.\dragonbreak.cmd preview   # Open the interactive 3D viewer
-.\dragonbreak.cmd run       # Open the desktop companion
-.\dragonbreak.cmd test      # Self-checks, muted UI previews, audio playback checks
-.\dragonbreak.cmd publish   # Bundle the Windows runtime
-.\dragonbreak.cmd install   # Install published app and shortcuts
+.\petcompanion.cmd preview   # Open the interactive 3D viewer
+.\petcompanion.cmd run       # Open the desktop companion
+.\petcompanion.cmd test      # Self-checks, muted UI previews, audio playback checks
+.\petcompanion.cmd publish   # Bundle the Windows runtime
+.\petcompanion.cmd install   # Install published app and shortcuts
 ```
 
-To update, quit the installed app, publish again, then run the install command. Settings are stored separately in `%LOCALAPPDATA%\DragonBreak\settings.json`. The app lives in `%LOCALAPPDATA%\Programs\DragonBreak`.
+To update, quit the installed app, publish again, then run the install command. Settings are stored separately in `%LOCALAPPDATA%\Petcompanion\settings.json`. The app lives in `%LOCALAPPDATA%\Programs\Petcompanion`.
 
 No network calls, credentials, telemetry, or paid services are used by the running app. The project is separate from PwdVault and does not read vaults.
 
@@ -50,12 +50,12 @@ Implementation references: [WPF windows](https://learn.microsoft.com/en-us/dotne
 
 ## Repository and agent handoff
 
-Everything needed to recreate this app lives in this repository. `init.cmd` is the first command after cloning; it requires the SDK in `global.json`. Run `dragonbreak.cmd help` for the command list. Build/test logs and screenshots are under `artifacts/dev`; generated files are excluded from Git. The UI test briefly displays full-screen reminders and closes them automatically. Optional audio regeneration: `scripts/Make-Audio.ps1`.
+Everything needed to recreate this app lives in this repository. `init.cmd` is the first command after cloning; it requires the SDK in `global.json`. Run `petcompanion.cmd help` for the command list. Build/test logs and screenshots are under `artifacts/dev`; generated files are excluded from Git. The UI test briefly displays full-screen reminders and closes them automatically. Optional audio regeneration: `scripts/Make-Audio.ps1`.
 
 - `AGENTS.md`: instructions for coding agents.
-- `.agents/skills/recreate-dragonbreak/SKILL.md`: reusable desktop-pet recreation skill.
+- `.agents/skills/recreate-petcompanion/SKILL.md`: reusable desktop-pet recreation skill.
 - `docs/HANDOFF.md`: model/renderer map, visual goals, export limitations, and performance work.
-- `scripts/Measure-Performance.ps1`: measure a running DragonBreak process's CPU and memory; see the handoff for methodology.
+- `scripts/Measure-Performance.ps1`: measure a running Petcompanion process's CPU and memory; see the handoff for methodology.
 - `src/Pets/Dragon/Assets/` and `src/Pets/Dragon/Exports/`: required audio, visual references, and portable static model.
 
 The next 3D agent can replace the prototype model and renderer. Detailed character fidelity and reduced resource consumption remain future work, with measurements required before claiming improvements.
@@ -65,7 +65,7 @@ Settings lets you add, edit, disable, or remove recurring custom messages (up to
 
 Choose FullScreen or Popup for water and movement, and separately for each custom reminder. Popup is silent, appears in the lower corner of the pet monitor's working area, and does not activate or take keyboard focus. It supports Done, Skip, Snooze 5 min, and automatic dismissal. FullScreen retains the animated takeover. Quiet hours, pause, lock, and suspend apply to all automatic reminders. Reminders are spaced by at least two minutes after dismissal.
 
-The app icon is an original ivory paw and copper reminder spark on a plum tile, shared by the executable, tray, and settings. Dragon and Orange cat are selectable in this version. Future companions can implement the shared pet contracts described in docs/ARCHITECTURE.md; reminder records and scheduling contain no pet or renderer dependency.
+The app icon is an original ivory paw and copper reminder spark on a plum tile, shared by the executable, tray, and settings. Dragon, Orange cat, and Moon owl are selectable in this version. Future companions can implement the shared pet contracts described in docs/ARCHITECTURE.md; reminder records and scheduling contain no pet or renderer dependency.
 
 ## Source organization
 
@@ -81,8 +81,28 @@ The app palette uses warm ivory (#FAF4EB), plum (#382638), and copper (#9B472E),
 
 ## Orange cat
 
-Orange cat (2D) is the default cat: a rounded, vector-drawn tabby with mirrored left/right views, cream paws, pink ears, rosy cheeks, blinking eyes, a swishing tail and continuous walking/resting animations. Sleeping closes its eyes and adds floating z symbols; full-screen reminders show a raised paw and a heart. Orange cat (3D preview) preserves the previous model for comparison. Both share grounded movement, saved selection, size controls and silent reminders. Choose a version in Settings and Save. No image swapping or external assets are used.
+Orange cat (2D) is the default cat: a rounded, vector-drawn tabby with mirrored left/right views, cream paws, pink ears, rosy cheeks, blinking eyes, a swishing tail and continuous walking/resting animations. Sleeping closes its eyes and adds floating z symbols; full-screen reminders show a raised paw and a heart. Orange cat (3D preview) preserves the previous model for comparison. Both share grounded movement, saved selection, size controls and gentle reminder sounds. Choose a version in Settings and Save. No image swapping or external assets are used.
 
 ## Interacting with the 2D cat
 
 Click its body to pet it (closed eyes and floating hearts), or tap its nose for a boop. Clicking a sleeping cat wakes it. Drag starts only after moving the pointer beyond the normal drag threshold; double-click still opens Settings. Right-click the cat or tray icon for Pet the cat, Boop nose, Give a treat, Play with yarn, Take a nap, and Wake up. The same actions appear in Settings when the 2D cat is active. Treats show a food bowl and nibbling; yarn play adds a bouncing ball and pawing. Reactions pause ordinary wandering without changing your movement preference or reminder schedule. Nap lasts until an action wakes the cat; the other reactions end automatically. Dragging cancels a reaction. The 3D comparison cat retains its original behavior.
+
+## Moon owl and the companion dashboard
+
+Moon owl is an original animated vector companion with soft facial discs, amber eyes, blinking, head tilts, wing-assisted hops and feather details. Click to ruffle its feathers or boop its beak. Treats bring berries; Play brings a firefly; nap and wake actions work like the cat. It stays near the bottom rather than flying across your work, and its full-screen reminders use a soft hoot.
+
+Settings now has an independent live preview, grouped cards, a fixed Save footer and an Up next reminder status. Pick a pet to preview it, then Save to switch the desktop companion. Changing the preview alone does not switch pets.
+
+Use the **Focus** shortcut for 15-, 25-, or 45-minute sessions. The pet settles in a bottom corner while automatic reminders use silent corner popups. Your saved movement, audio and reminder style remain unchanged, and normal movement returns when focus ends. A silent completion nudge appears when the timer finishes. Focus pauses during app pause, Windows lock and suspend; it resumes only when those conditions clear. Quiet hours still suppress automatic reminders.
+
+Enable **Let clicks pass through the pet** under Preferences to use windows behind the companion. Restore interaction from the tray menu or Settings. The preference is saved separately from focus; focus never changes it.
+
+The existing pets also have refreshed details: softer curved tabby markings and ear reactions in 2D, a rounder 3D comparison cat, and richer dragon eyes, brows, whiskers, emerald/gold colouring and belly segments. No runtime performance or battery improvement is claimed. Existing dragon GLB exports remain earlier static prototype poses.
+
+## App rename compatibility
+
+The app is now Petcompanion. Build/run with `petcompanion.cmd` and `Petcompanion.csproj`; published files include `Petcompanion.exe`. The old `dragonbreak.cmd` forwards to the new launcher. Settings are saved under `%LOCALAPPDATA%\Petcompanion\settings.json`. If that file is absent or unreadable, the app reads the previous `%LOCALAPPDATA%\DragonBreak\settings.json` so your pets, reminders and audio choices remain available. Saving writes the new location. Old settings are not deleted. The single-instance lock remains compatible with older builds; quit the older app before opening Petcompanion. The GitHub repository name is unchanged.
+
+## Sound
+
+Settings has a **Test sound** button that applies the selected volume and plays the companion cue even during quiet hours. Mute and volume zero disable that button. Full-screen dragon reminders use roar/voice; cat and owl use original synthesized mew/hoot cues. Manual pet/boop/treat/play/wake interactions on the 2D cat and owl also play their cue, with a short cooldown. These are synthesized sounds, not real animal recordings; the on-screen purr remains text rather than a separate recording. Corner popups and automatic idle animations remain silent. Quiet hours stop automatic reminders, not manual sound tests. `petcompanion.cmd sound` runs a short 35%-volume owl test. `petcompanion.cmd test` verifies every shipped audio clip without audible playback. Regenerate the new cues offline with `scripts/Make-Pet-Audio.ps1`.

@@ -1,7 +1,7 @@
 using System;
 using System.Windows;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal readonly record struct GroundStep(Point Position, PetActivity Activity);
 internal sealed class GroundMotion

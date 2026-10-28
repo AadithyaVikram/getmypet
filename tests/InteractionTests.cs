@@ -1,7 +1,7 @@
 using System;
 using System.Windows;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal static class InteractionTests
 {
@@ -19,6 +19,7 @@ internal static class InteractionTests
         check(!state.Active, "Wake returns to ordinary behavior");
         state.Trigger(PetInteraction.Pet); state.Cancel(); check(!state.Active, "Drag cancels reaction");
         var cat = new Cat2D();
+        int soundEvents = 0; cat.InteractionStarted += _ => soundEvents++;
         check(!cat.TryTap(new Point(.1, .1)) && !cat.IsInteracting, "Blank space does not pet the cat");
         check(cat.TryTap(new Point(289d / 360, 247d / 360)) && cat.CurrentInteraction == PetInteraction.Boop, "Nose tap boops");
         cat.FacingRight = false; cat.CancelInteraction();
@@ -28,6 +29,7 @@ internal static class InteractionTests
         check(cat.TryTap(new Point(207d / 360, 175d / 360)) && cat.CurrentInteraction == PetInteraction.Pet, "Ear tap scratches rather than boops");
         cat.Interact(PetInteraction.Nap);
         check(cat.TryTap(new Point(160d / 360, 310d / 360)) && cat.CurrentInteraction == PetInteraction.Wake, "Tap wakes requested nap");
+        check(soundEvents >= 5, "Taps and actions emit pet audio events");
         cat.Interact(PetInteraction.Play); cat.UpdatePose(9);
         check(!cat.IsInteracting && cat.Activity == PetActivity.Walking, "Reaction leaves normal activity intact");
     }

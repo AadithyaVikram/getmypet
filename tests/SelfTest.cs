@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Windows;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 internal static class SelfTest
 {
@@ -23,6 +23,9 @@ internal static class SelfTest
             WanderTests.Run(Check);
             CatTests.Run(Check);
             InteractionTests.Run(Check);
+            OwlTests.Run(Check);
+            FocusTests.Run(Check);
+            RenameTests.Run(Check);
             var timer = new Schedule(s, now);
             Check(timer.Due(now) == null, "No immediate reminder");
             Check(timer.Due(now.AddMinutes(1)) == BreakKind.Water, "Water wins equal deadlines");

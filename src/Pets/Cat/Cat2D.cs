@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 // Vector-drawn side-view cat. Articulation is continuous; facing is a horizontal mirror.
 internal sealed class Cat2D : FrameworkElement, IGroundPetVisual, IInteractivePetVisual
@@ -18,9 +18,10 @@ internal sealed class Cat2D : FrameworkElement, IGroundPetVisual, IInteractivePe
     public PetActivity Activity { get; set; } = PetActivity.Walking;
     public bool Reminder { get; set; }
     private readonly PetInteractionState _interaction = new();
+    public event Action<PetInteraction>? InteractionStarted;
     public bool IsInteracting => _interaction.Active;
     public PetInteraction CurrentInteraction => _interaction.Kind;
-    public void Interact(PetInteraction action) { _interaction.Trigger(action); InvalidateVisual(); }
+    public void Interact(PetInteraction action) { _interaction.Trigger(action); InteractionStarted?.Invoke(action); InvalidateVisual(); }
     public void CancelInteraction() => _interaction.Cancel();
     private PetActivity EffectiveActivity => CurrentInteraction switch {
         PetInteraction.Nap => PetActivity.Sleeping, PetInteraction.Treat => PetActivity.Grooming,
@@ -39,7 +40,7 @@ internal sealed class Cat2D : FrameworkElement, IGroundPetVisual, IInteractivePe
         return true;
     }
     private static readonly Brush Orange = ColorBrush(246, 174, 101), Light = ColorBrush(255, 200, 139),
-        Cream = ColorBrush(255, 240, 214), Outline = ColorBrush(105, 65, 46), Stripe = ColorBrush(211, 125, 65),
+        Cream = ColorBrush(255, 240, 214), Outline = ColorBrush(113, 73, 52), Stripe = ColorBrush(211, 125, 65),
         Pink = ColorBrush(234, 148, 146), Blush = ColorBrush(245, 170, 151), Eyes = ColorBrush(71, 48, 42);
     private static readonly Pen Edge = Stroke(Outline, 3.4), Fine = Stroke(Outline, 2.3);
     private static readonly Geometry Ears = Geometry.Parse("M -40,-28 Q -54,-53 -38,-83 Q -13,-75 -8,-45 Z M 10,-40 Q 22,-76 39,-81 Q 53,-58 47,-26 Z");
@@ -90,12 +91,16 @@ internal sealed class Cat2D : FrameworkElement, IGroundPetVisual, IInteractivePe
         Paw(dc, 134 + stride * 8, 330 - Math.Max(0, -stride) * 7, 17, 10);
         Paw(dc, 206 - stride * 8, 330 - Math.Max(0, stride) * 7, 17, 10);
         dc.DrawEllipse(Orange, Edge, new Point(bodyX, bodyY), bodyRx, bodyRy);
+        dc.PushOpacity(.36);
+        dc.DrawEllipse(Light, null, new Point(bodyX - 14, bodyY - bodyRy * .35), bodyRx * .65, bodyRy * .44);
+        dc.Pop();
         dc.DrawEllipse(Cream, null, new Point(bodyX + 25, bodyY + 9), bodyRx * .44, bodyRy * .58);
         // Rounded tabby markings follow the torso rather than swapping frames.
         for (int i = 0; i < 3; i++)
         {
             double x = bodyX - 33 + i * 22;
-            dc.DrawRoundedRectangle(Stripe, null, new Rect(x, bodyY - bodyRy + 3, 8, 19 - i * 2), 4, 4);
+            Curve(dc, new Point(x, bodyY - bodyRy + 6), new Point(x - 5, bodyY - bodyRy + 15),
+                new Point(x + 1, bodyY - bodyRy + 20 - i * 2), Stroke(Stripe, 6.5));
         }
         if (_sleep > .5)
         {
@@ -113,22 +118,39 @@ internal sealed class Cat2D : FrameworkElement, IGroundPetVisual, IInteractivePe
         double headX = 242 - _sit * 13, headY = 235 + _sleep * 66 + bob;
         if (CurrentInteraction == PetInteraction.Treat) headY += 35 + Math.Sin(_time * 7) * 3;
         dc.PushTransform(new TranslateTransform(headX, headY));
-        dc.PushTransform(new RotateTransform(_groom * (12 + Math.Sin(_time * 5) * 5)));
+        double headTilt = _groom * (12 + Math.Sin(_time * 5) * 5);
+        if (CurrentInteraction == PetInteraction.Pet) headTilt += Math.Sin(_time * 3) * 3;
+        if (CurrentInteraction == PetInteraction.Boop) headTilt -= 5;
+        if (CurrentInteraction == PetInteraction.Play) headTilt += Math.Sin(_time * 4) * 3;
+        dc.PushTransform(new RotateTransform(headTilt));
         dc.PushTransform(new ScaleTransform(1 - _sleep * .17, 1 - _sleep * .25));
+        double earTwitch = Math.Sin(_time * 1.9) * 1.1;
+        if (CurrentInteraction == PetInteraction.Pet) earTwitch += Math.Sin(_time * 9) * 2.4;
+        dc.PushTransform(new RotateTransform(earTwitch, 0, -17));
         dc.DrawGeometry(Orange, Edge, Ears); dc.DrawGeometry(Pink, null, InnerEars);
+        dc.Pop();
         dc.DrawEllipse(Orange, Edge, new Point(0, 0), 57, 51);
         dc.DrawEllipse(Light, null, new Point(-17, -12), 31, 29);
         dc.DrawEllipse(Cream, null, new Point(27, 21), 28, 21);
         dc.DrawEllipse(Blush, null, new Point(18, 17), 13, 7);
         bool closed = _sleep > .5 || _time % 5 < .17 || CurrentInteraction is PetInteraction.Pet or PetInteraction.Boop;
-        Eye(dc, 17, -7, 9.5, closed); Eye(dc, 43, -11, 5, closed);
+        Eye(dc, 17, -7, 10, closed); Eye(dc, 43, -11, 5.2, closed);
+        if (CurrentInteraction is PetInteraction.Play or PetInteraction.Boop)
+        {
+            Curve(dc, new Point(8, -24), new Point(16, -29), new Point(25, -25), Stroke(Outline, 2));
+            Curve(dc, new Point(39, -24), new Point(44, -28), new Point(48, -24), Stroke(Outline, 1.8));
+        }
         dc.DrawEllipse(Pink, Fine, new Point(47, 12), 5, 3.7);
         dc.DrawLine(Fine, new Point(47, 16), new Point(45, 22));
         Curve(dc, new Point(45, 22), new Point(38, 28), new Point(33, 23), Fine);
         dc.DrawLine(Fine, new Point(29, 22), new Point(6, 19));
         dc.DrawLine(Fine, new Point(29, 27), new Point(5, 30));
+        dc.DrawEllipse(Outline, null, new Point(32, 18), 1.2, 1.2);
+        dc.DrawEllipse(Outline, null, new Point(36, 22), 1.1, 1.1);
+        dc.DrawEllipse(Outline, null, new Point(29, 23), 1, 1);
         for (int i = 0; i < 3; i++)
-            dc.DrawRoundedRectangle(Stripe, null, new Rect(-10 + i * 12, -49 + Math.Abs(1 - i) * 2, 6, 14), 3, 3);
+            Curve(dc, new Point(-8 + i * 12, -47 + Math.Abs(1 - i) * 2),
+                new Point(-10 + i * 12, -40), new Point(-6 + i * 12, -35), Stroke(Stripe, i == 1 ? 6 : 4.5));
         dc.Pop(); dc.Pop(); dc.Pop();
         if (_sleep > .7)
         {
@@ -164,7 +186,14 @@ internal sealed class Cat2D : FrameworkElement, IGroundPetVisual, IInteractivePe
         if (CurrentInteraction == PetInteraction.Boop)
         {
             double radius = 6 + (t % .6) * 9;
-            dc.DrawEllipse(null, Stroke(Pink, 2.5), new Point(headX + 47, headY + 12), radius, radius);
+            var nose = new Point(headX + 47, headY + 12);
+            dc.DrawEllipse(null, Stroke(Pink, 2.5), nose, radius, radius);
+            for (int i = 0; i < 4; i++)
+            {
+                double a = i * Math.PI / 2;
+                dc.DrawLine(Stroke(Pink, 2), nose + new Vector(Math.Cos(a), Math.Sin(a)) * (radius + 4),
+                    nose + new Vector(Math.Cos(a), Math.Sin(a)) * (radius + 8));
+            }
         }
         if (CurrentInteraction == PetInteraction.Treat)
         {
@@ -196,6 +225,7 @@ internal sealed class Cat2D : FrameworkElement, IGroundPetVisual, IInteractivePe
     {
         dc.DrawEllipse(Cream, Edge, new Point(x, y), rx, ry);
         dc.DrawLine(Stroke(Stripe, 1.5), new Point(x + 4, y + 3), new Point(x + 4, y + 7));
+        dc.DrawLine(Stroke(Stripe, 1.5), new Point(x - 3, y + 4), new Point(x - 3, y + 8));
     }
     private static void Eye(DrawingContext dc, double x, double y, double radius, bool closed)
     {

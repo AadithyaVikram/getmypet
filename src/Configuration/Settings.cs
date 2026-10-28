@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 
-namespace DragonBreak;
+namespace Petcompanion;
 
 public enum Movement { Wander, Follow, Stay }
 
@@ -19,10 +19,12 @@ public sealed record Settings
     public int PetSizePercent { get; set; } = 100;
     public int Volume { get; set; } = 40;
     public bool Muted { get; set; }
+    public bool ClickThrough { get; set; }
     public bool QuietHours { get; set; } = true;
     public Movement Movement { get; set; } = Movement.Wander;
-    public static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DragonBreak");
+    public static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Petcompanion");
     public static string FilePath => Path.Combine(Folder, "settings.json");
+    internal static string LegacyFilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DragonBreak", "settings.json");
 
     public Settings Validate() => this with
     {
@@ -40,10 +42,16 @@ public sealed record Settings
         Movement = Enum.IsDefined(Movement) ? Movement : Movement.Wander
     };
 
-    public static Settings Load()
+    public static Settings Load() => LoadFrom(FilePath, LegacyFilePath);
+
+    internal static Settings LoadFrom(string currentPath, string legacyPath)
     {
-        try { return (JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? new Settings()).Validate(); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { return new Settings(); }
+        foreach (string path in new[] { currentPath, legacyPath }.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try { if (File.Exists(path) && JsonSerializer.Deserialize<Settings>(File.ReadAllText(path)) is Settings settings) return settings.Validate(); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { }
+        }
+        return new Settings();
     }
 
     public void Save()
